@@ -105,7 +105,17 @@ namespace Microsoft.AspNetCore.ResponseCaching
             }
             else
             {
-                await _next(httpContext);
+                // Add IResponseCachingFeature which may be required when the response is generated
+                AddResponseCachingFeature(httpContext);
+
+                try
+                {
+                    await _next(httpContext);
+                }
+                finally
+                {
+                    RemoveResponseCachingFeature(httpContext);
+                }
             }
         }
 
@@ -322,6 +332,15 @@ namespace Microsoft.AspNetCore.ResponseCaching
             }
         }
 
+        internal static void AddResponseCachingFeature(HttpContext context)
+        {
+            if (context.Features.Get<IResponseCachingFeature>() != null)
+            {
+                throw new InvalidOperationException($"Another instance of {nameof(ResponseCachingFeature)} already exists. Only one instance of {nameof(ResponseCachingMiddleware)} can be configured for an application.");
+            }
+            context.Features.Set<IResponseCachingFeature>(new ResponseCachingFeature());
+        }
+
         internal void ShimResponseStream(ResponseCachingContext context)
         {
             // Shim response stream
@@ -337,12 +356,11 @@ namespace Microsoft.AspNetCore.ResponseCaching
             }
 
             // Add IResponseCachingFeature
-            if (context.HttpContext.Features.Get<IResponseCachingFeature>() != null)
-            {
-                throw new InvalidOperationException($"Another instance of {nameof(ResponseCachingFeature)} already exists. Only one instance of {nameof(ResponseCachingMiddleware)} can be configured for an application.");
-            }
-            context.HttpContext.Features.Set<IResponseCachingFeature>(new ResponseCachingFeature());
+            AddResponseCachingFeature(context.HttpContext);
         }
+
+        internal static void RemoveResponseCachingFeature(HttpContext context) =>
+            context.Features.Set<IResponseCachingFeature>(null);
 
         internal static void UnshimResponseStream(ResponseCachingContext context)
         {
@@ -353,7 +371,7 @@ namespace Microsoft.AspNetCore.ResponseCaching
             context.HttpContext.Features.Set(context.OriginalSendFileFeature);
 
             // Remove IResponseCachingFeature
-            context.HttpContext.Features.Set<IResponseCachingFeature>(null);
+            RemoveResponseCachingFeature(context.HttpContext);
         }
 
         internal static bool ContentIsNotModified(ResponseCachingContext context)
