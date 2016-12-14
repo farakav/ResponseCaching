@@ -668,6 +668,29 @@ namespace Microsoft.AspNetCore.ResponseCaching.Tests
         }
 
         [Fact]
+        public void IsCachedEntryFresh_MaxStaleInfiniteOverridesFreshness_ToFresh()
+        {
+            var sink = new TestSink();
+            var context = TestUtils.CreateTestContext(sink);
+            context.HttpContext.Request.Headers[HeaderNames.CacheControl] = new CacheControlHeaderValue()
+            {
+                MaxAge = TimeSpan.FromSeconds(5),
+                MaxStale = true // No value specified means a MaxStaleLimit of infinity
+            }.ToString();
+            context.CachedResponseHeaders = new HeaderDictionary();
+            context.CachedResponseHeaders[HeaderNames.CacheControl] = new CacheControlHeaderValue()
+            {
+                MaxAge = TimeSpan.FromSeconds(5),
+            }.ToString();
+            context.CachedEntryAge = TimeSpan.FromSeconds(6);
+
+            Assert.True(new ResponseCachingPolicyProvider().IsCachedEntryFresh(context));
+            TestUtils.AssertLoggedMessages(
+                sink.Writes,
+                LoggedMessage.ExpirationMaxStaleSatisfied);
+        }
+
+        [Fact]
         public void IsCachedEntryFresh_MaxStaleOverridesFreshness_ButStillNotFresh()
         {
             var sink = new TestSink();
@@ -693,6 +716,31 @@ namespace Microsoft.AspNetCore.ResponseCaching.Tests
 
         [Fact]
         public void IsCachedEntryFresh_MustRevalidateOverridesRequestMaxStale_ToNotFresh()
+        {
+            var sink = new TestSink();
+            var context = TestUtils.CreateTestContext(sink);
+            context.HttpContext.Request.Headers[HeaderNames.CacheControl] = new CacheControlHeaderValue()
+            {
+                MaxAge = TimeSpan.FromSeconds(5),
+                MaxStale = true, // This value must be set to true in order to specify MaxStaleLimit
+                MaxStaleLimit = TimeSpan.FromSeconds(2)
+            }.ToString();
+            context.CachedResponseHeaders = new HeaderDictionary();
+            context.CachedResponseHeaders[HeaderNames.CacheControl] = new CacheControlHeaderValue()
+            {
+                MaxAge = TimeSpan.FromSeconds(5),
+                MustRevalidate = true
+            }.ToString();
+            context.CachedEntryAge = TimeSpan.FromSeconds(6);
+
+            Assert.False(new ResponseCachingPolicyProvider().IsCachedEntryFresh(context));
+            TestUtils.AssertLoggedMessages(
+                sink.Writes,
+                LoggedMessage.ExpirationMustRevalidate);
+        }
+
+        [Fact]
+        public void IsCachedEntryFresh_ProxyRevalidateOverridesRequestMaxStale_ToNotFresh()
         {
             var sink = new TestSink();
             var context = TestUtils.CreateTestContext(sink);
