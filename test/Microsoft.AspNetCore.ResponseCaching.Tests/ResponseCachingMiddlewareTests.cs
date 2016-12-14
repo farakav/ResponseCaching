@@ -356,6 +356,7 @@ namespace Microsoft.AspNetCore.ResponseCaching.Tests
             var context = TestUtils.CreateTestContext();
 
             context.ShouldCacheResponse = true;
+            middleware.ShimResponseStream(context);
 
             await middleware.FinalizeCacheHeadersAsync(context);
 
