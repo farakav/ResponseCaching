@@ -123,10 +123,16 @@ namespace Microsoft.AspNetCore.ResponseCaching.Tests
                 using (var server = new TestServer(builder))
                 {
                     var client = server.CreateClient();
-                    client.DefaultRequestHeaders.CacheControl =
-                        new System.Net.Http.Headers.CacheControlHeaderValue { NoCache = true };
 
                     var initialResponse = await client.SendAsync(TestUtils.CreateRequest(method, ""));
+
+                    // verify the response is cached
+                    var cachedResponse = await client.SendAsync(TestUtils.CreateRequest(method, ""));
+                    await AssertCachedResponseAsync(initialResponse, cachedResponse);
+
+                    // assert cached response no longer served
+                    client.DefaultRequestHeaders.CacheControl =
+                        new System.Net.Http.Headers.CacheControlHeaderValue { NoCache = true };
                     var subsequentResponse = await client.SendAsync(TestUtils.CreateRequest(method, ""));
 
                     await AssertFreshResponseAsync(initialResponse, subsequentResponse);
@@ -146,10 +152,16 @@ namespace Microsoft.AspNetCore.ResponseCaching.Tests
                 using (var server = new TestServer(builder))
                 {
                     var client = server.CreateClient();
-                    client.DefaultRequestHeaders.Pragma.Clear();
-                    client.DefaultRequestHeaders.Pragma.Add(new System.Net.Http.Headers.NameValueHeaderValue("no-cache"));
 
                     var initialResponse = await client.SendAsync(TestUtils.CreateRequest(method, ""));
+
+                    // verify the response is cached
+                    var cachedResponse = await client.SendAsync(TestUtils.CreateRequest(method, ""));
+                    await AssertCachedResponseAsync(initialResponse, cachedResponse);
+
+                    // assert cached response no longer served
+                    client.DefaultRequestHeaders.Pragma.Clear();
+                    client.DefaultRequestHeaders.Pragma.Add(new System.Net.Http.Headers.NameValueHeaderValue("no-cache"));
                     var subsequentResponse = await client.SendAsync(TestUtils.CreateRequest(method, ""));
 
                     await AssertFreshResponseAsync(initialResponse, subsequentResponse);
@@ -565,7 +577,7 @@ namespace Microsoft.AspNetCore.ResponseCaching.Tests
         }
 
         [Fact]
-        public async void ServesCachedContent_IfSubsequentRequest_ContainsNoStore()
+        public async void ServesCachedContent_IfSubsequentRequestContainsNoStore()
         {
             var builders = TestUtils.CreateBuildersWithResponseCaching();
 
@@ -587,7 +599,7 @@ namespace Microsoft.AspNetCore.ResponseCaching.Tests
         }
 
         [Fact]
-        public async void ServesFreshContent_IfInitialRequestContains_NoStore()
+        public async void ServesFreshContent_IfInitialRequestContainsNoStore()
         {
             var builders = TestUtils.CreateBuildersWithResponseCaching();
 

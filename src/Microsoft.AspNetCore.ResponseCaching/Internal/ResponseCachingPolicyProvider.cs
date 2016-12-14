@@ -10,7 +10,7 @@ namespace Microsoft.AspNetCore.ResponseCaching.Internal
 {
     public class ResponseCachingPolicyProvider : IResponseCachingPolicyProvider
     {
-        public bool BypassResponseCaching(ResponseCachingContext context)
+        public virtual bool BypassResponseCaching(ResponseCachingContext context)
         {
             var request = context.HttpContext.Request;
 
@@ -31,7 +31,7 @@ namespace Microsoft.AspNetCore.ResponseCaching.Internal
             return false;
         }
 
-        public bool BypassCacheLookup(ResponseCachingContext context)
+        public virtual bool BypassCacheLookup(ResponseCachingContext context)
         {
             var request = context.HttpContext.Request;
 
@@ -58,7 +58,7 @@ namespace Microsoft.AspNetCore.ResponseCaching.Internal
             return false;
         }
 
-        public bool BypassCacheStorage(ResponseCachingContext context)
+        public virtual bool BypassCacheStorage(ResponseCachingContext context)
         {
             // Check request no-store
             return HeaderUtilities.ContainsCacheDirective(context.HttpContext.Request.Headers[HeaderNames.CacheControl], CacheControlHeaderValue.NoStoreString);
