@@ -330,23 +330,7 @@ namespace Microsoft.AspNetCore.ResponseCaching.Tests
         }
 
         [Fact]
-        public async Task FinalizeCacheHeaders_DoNotUpdateShouldCacheResponse_IfResponseIsNotCacheable()
-        {
-            var sink = new TestSink();
-            var middleware = TestUtils.CreateTestMiddleware(testSink: sink, policyProvider: new ResponseCachingPolicyProvider());
-            var context = TestUtils.CreateTestContext();
-
-            Assert.False(context.ShouldCacheResponse);
-
-            middleware.ShimResponseStream(context);
-            await middleware.FinalizeCacheHeadersAsync(context);
-
-            Assert.False(context.ShouldCacheResponse);
-            Assert.Empty(sink.Writes);
-        }
-
-        [Fact]
-        public async Task FinalizeCacheHeaders_UpdateShouldCacheResponse_IfResponseIsCacheable()
+        public async Task FinalizeCacheHeaders_DoNotUpdateShouldCacheResponse_IfResponseCacheable()
         {
             var sink = new TestSink();
             var middleware = TestUtils.CreateTestMiddleware(testSink: sink, policyProvider: new ResponseCachingPolicyProvider());
@@ -360,7 +344,22 @@ namespace Microsoft.AspNetCore.ResponseCaching.Tests
 
             await middleware.FinalizeCacheHeadersAsync(context);
 
-            Assert.True(context.ShouldCacheResponse);
+            Assert.False(context.ShouldCacheResponse);
+            Assert.Empty(sink.Writes);
+        }
+
+        [Fact]
+        public async Task FinalizeCacheHeaders_UpdateShouldCacheResponse_IfResponseIsNotCacheable()
+        {
+            var sink = new TestSink();
+            var middleware = TestUtils.CreateTestMiddleware(testSink: sink, policyProvider: new ResponseCachingPolicyProvider());
+            var context = TestUtils.CreateTestContext();
+
+            context.ShouldCacheResponse = true;
+
+            await middleware.FinalizeCacheHeadersAsync(context);
+
+            Assert.False(context.ShouldCacheResponse);
             Assert.Empty(sink.Writes);
         }
 
@@ -370,6 +369,8 @@ namespace Microsoft.AspNetCore.ResponseCaching.Tests
             var sink = new TestSink();
             var middleware = TestUtils.CreateTestMiddleware(testSink: sink);
             var context = TestUtils.CreateTestContext();
+
+            context.ShouldCacheResponse = true;
 
             await middleware.FinalizeCacheHeadersAsync(context);
 
@@ -385,6 +386,7 @@ namespace Microsoft.AspNetCore.ResponseCaching.Tests
             var middleware = TestUtils.CreateTestMiddleware(testSink: sink);
             var context = TestUtils.CreateTestContext();
 
+            context.ShouldCacheResponse = true;
             context.ResponseTime = utcNow;
             context.HttpContext.Response.Headers[HeaderNames.Expires] = HeaderUtilities.FormatDate(utcNow + TimeSpan.FromSeconds(11));
 
@@ -406,6 +408,7 @@ namespace Microsoft.AspNetCore.ResponseCaching.Tests
             }.ToString();
 
             context.HttpContext.Response.Headers[HeaderNames.Expires] = HeaderUtilities.FormatDate(context.ResponseTime.Value + TimeSpan.FromSeconds(11));
+            context.ShouldCacheResponse = true;
 
             await middleware.FinalizeCacheHeadersAsync(context);
 
@@ -426,6 +429,7 @@ namespace Microsoft.AspNetCore.ResponseCaching.Tests
             }.ToString();
 
             context.HttpContext.Response.Headers[HeaderNames.Expires] = HeaderUtilities.FormatDate(context.ResponseTime.Value + TimeSpan.FromSeconds(11));
+            context.ShouldCacheResponse = true;
 
             await middleware.FinalizeCacheHeadersAsync(context);
 
@@ -452,6 +456,7 @@ namespace Microsoft.AspNetCore.ResponseCaching.Tests
                 QueryKeys = new StringValues(new[] { "QueryA", "QueryB" })
             };
             context.CachedVaryByRules = cachedVaryByRules;
+            context.ShouldCacheResponse = true;
 
             await middleware.TryServeFromCacheAsync(context);
             await middleware.FinalizeCacheHeadersAsync(context);
@@ -484,6 +489,7 @@ namespace Microsoft.AspNetCore.ResponseCaching.Tests
                 QueryKeys = new StringValues(new[] { "QUERYA", "QUERYB" })
             };
             context.CachedVaryByRules = cachedVaryByRules;
+            context.ShouldCacheResponse = true;
 
             await middleware.TryServeFromCacheAsync(context);
             await middleware.FinalizeCacheHeadersAsync(context);
@@ -529,6 +535,7 @@ namespace Microsoft.AspNetCore.ResponseCaching.Tests
             {
                 VaryByQueryKeys = vary
             });
+            context.ShouldCacheResponse = true;
 
             await middleware.TryServeFromCacheAsync(context);
             await middleware.FinalizeCacheHeadersAsync(context);
@@ -548,6 +555,7 @@ namespace Microsoft.AspNetCore.ResponseCaching.Tests
             var middleware = TestUtils.CreateTestMiddleware(testSink: sink);
             var context = TestUtils.CreateTestContext();
             context.ResponseTime = utcNow;
+            context.ShouldCacheResponse = true;
 
             Assert.True(StringValues.IsNullOrEmpty(context.HttpContext.Response.Headers[HeaderNames.Date]));
 
@@ -566,6 +574,7 @@ namespace Microsoft.AspNetCore.ResponseCaching.Tests
             var context = TestUtils.CreateTestContext();
             context.HttpContext.Response.Headers[HeaderNames.Date] = HeaderUtilities.FormatDate(utcNow);
             context.ResponseTime = utcNow + TimeSpan.FromSeconds(10);
+            context.ShouldCacheResponse = true;
 
             Assert.Equal(HeaderUtilities.FormatDate(utcNow), context.HttpContext.Response.Headers[HeaderNames.Date]);
 
@@ -581,6 +590,7 @@ namespace Microsoft.AspNetCore.ResponseCaching.Tests
             var sink = new TestSink();
             var middleware = TestUtils.CreateTestMiddleware(testSink: sink);
             var context = TestUtils.CreateTestContext();
+            context.ShouldCacheResponse = true;
 
             Assert.Null(context.CachedResponse);
 
@@ -599,6 +609,8 @@ namespace Microsoft.AspNetCore.ResponseCaching.Tests
             context.HttpContext.Response.Headers[HeaderNames.Vary] = "HeaderB, heaDera";
 
             await middleware.TryServeFromCacheAsync(context);
+
+            context.ShouldCacheResponse = true;
             await middleware.FinalizeCacheHeadersAsync(context);
 
             Assert.Equal(new StringValues(new[] { "HEADERA", "HEADERB" }), context.CachedVaryByRules.Headers);
@@ -616,11 +628,11 @@ namespace Microsoft.AspNetCore.ResponseCaching.Tests
             var middleware = TestUtils.CreateTestMiddleware(testSink: sink, cache: cache);
             var context = TestUtils.CreateTestContext();
 
+            context.ShouldCacheResponse = true;
             middleware.ShimResponseStream(context);
             context.HttpContext.Response.ContentLength = 20;
             await context.HttpContext.Response.WriteAsync(new string('0', 20));
 
-            context.ShouldCacheResponse = true;
             context.CachedResponse = new CachedResponse();
             context.BaseKey = "BaseKey";
             context.CachedResponseValidFor = TimeSpan.FromSeconds(10);
@@ -641,11 +653,11 @@ namespace Microsoft.AspNetCore.ResponseCaching.Tests
             var middleware = TestUtils.CreateTestMiddleware(testSink: sink, cache: cache);
             var context = TestUtils.CreateTestContext();
 
+            context.ShouldCacheResponse = true;
             middleware.ShimResponseStream(context);
             context.HttpContext.Response.ContentLength = 9;
             await context.HttpContext.Response.WriteAsync(new string('0', 10));
 
-            context.ShouldCacheResponse = true;
             context.CachedResponse = new CachedResponse();
             context.BaseKey = "BaseKey";
             context.CachedResponseValidFor = TimeSpan.FromSeconds(10);
@@ -666,10 +678,10 @@ namespace Microsoft.AspNetCore.ResponseCaching.Tests
             var middleware = TestUtils.CreateTestMiddleware(testSink: sink, cache: cache);
             var context = TestUtils.CreateTestContext();
 
+            context.ShouldCacheResponse = true;
             middleware.ShimResponseStream(context);
             await context.HttpContext.Response.WriteAsync(new string('0', 10));
 
-            context.ShouldCacheResponse = true;
             context.CachedResponse = new CachedResponse()
             {
                 Headers = new HeaderDictionary()
@@ -714,10 +726,10 @@ namespace Microsoft.AspNetCore.ResponseCaching.Tests
             var middleware = TestUtils.CreateTestMiddleware(testSink: sink, cache: cache);
             var context = TestUtils.CreateTestContext();
 
+            context.ShouldCacheResponse = true;
             middleware.ShimResponseStream(context);
             await context.HttpContext.Response.WriteAsync(new string('0', 10));
 
-            context.ShouldCacheResponse = true;
             context.ResponseCachingStream.DisableBuffering();
 
             await middleware.FinalizeCacheBodyAsync(context);

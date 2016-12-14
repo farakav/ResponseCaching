@@ -137,7 +137,7 @@ namespace Microsoft.AspNetCore.ResponseCaching.Tests
                 NoStore = true
             }.ToString();
 
-            Assert.True(new ResponseCachingPolicyProvider().BypassResponseBuffering(context));
+            Assert.True(new ResponseCachingPolicyProvider().BypassCacheStorage(context));
             Assert.Empty(sink.Writes);
         }
 

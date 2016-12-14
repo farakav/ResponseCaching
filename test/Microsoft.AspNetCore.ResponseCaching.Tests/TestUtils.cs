@@ -225,7 +225,7 @@ namespace Microsoft.AspNetCore.ResponseCaching.Tests
     {
         public bool BypassCacheLookup(ResponseCachingContext context) => false;
 
-        public bool BypassResponseBuffering(ResponseCachingContext context) => false;
+        public bool BypassCacheStorage(ResponseCachingContext context) => false;
 
         public bool BypassResponseCaching(ResponseCachingContext context) => false;
 

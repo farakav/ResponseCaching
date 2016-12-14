@@ -82,42 +82,27 @@ namespace Microsoft.AspNetCore.ResponseCaching
                     return;
                 }
 
-                if (!_policyProvider.BypassResponseBuffering(context))
+                context.ShouldCacheResponse = !_policyProvider.BypassCacheStorage(context);
+
+                // Hook up to listen to the response stream
+                ShimResponseStream(context);
+
+                try
                 {
-                    // Hook up to listen to the response stream
-                    ShimResponseStream(context);
+                    // Subscribe to OnStarting event
+                    httpContext.Response.OnStarting(_onStartingCallback, context);
 
-                    try
-                    {
-                        // Subscribe to OnStarting event
-                        httpContext.Response.OnStarting(_onStartingCallback, context);
+                    await _next(httpContext);
 
-                        await _next(httpContext);
+                    // If there was no response body, check the response headers now. We can cache things like redirects.
+                    await OnResponseStartingAsync(context);
 
-                        // If there was no response body, check the response headers now. We can cache things like redirects.
-                        await OnResponseStartingAsync(context);
-
-                        // Finalize the cache entry
-                        await FinalizeCacheBodyAsync(context);
-                    }
-                    finally
-                    {
-                        UnshimResponseStream(context);
-                    }
+                    // Finalize the cache entry
+                    await FinalizeCacheBodyAsync(context);
                 }
-                else
+                finally
                 {
-                    // Add IResponseCachingFeature which may be required when the response is generated
-                    AddResponseCachingFeature(httpContext);
-
-                    try
-                    {
-                        await _next(httpContext);
-                    }
-                    finally
-                    {
-                        RemoveResponseCachingFeature(httpContext);
-                    }
+                    UnshimResponseStream(context);
                 }
             }
             else
@@ -234,10 +219,8 @@ namespace Microsoft.AspNetCore.ResponseCaching
 
         internal async Task FinalizeCacheHeadersAsync(ResponseCachingContext context)
         {
-            if (_policyProvider.IsResponseCacheable(context))
+            if (context.ShouldCacheResponse && _policyProvider.IsResponseCacheable(context))
             {
-                context.ShouldCacheResponse = true;
-
                 // Create the cache entry now
                 var response = context.HttpContext.Response;
                 var varyHeaders = new StringValues(response.Headers.GetCommaSeparatedValues(HeaderNames.Vary));
@@ -306,15 +289,16 @@ namespace Microsoft.AspNetCore.ResponseCaching
             }
             else
             {
-                context.ResponseCachingStream.DisableBuffering();
+                context.ShouldCacheResponse = false;
+                context.ResponseCachingStream?.DisableBuffering();
             }
         }
 
         internal async Task FinalizeCacheBodyAsync(ResponseCachingContext context)
         {
-            var contentLength = context.HttpContext.Response.ContentLength;
             if (context.ShouldCacheResponse && context.ResponseCachingStream.BufferingEnabled)
             {
+                var contentLength = context.HttpContext.Response.ContentLength;
                 var bufferStream = context.ResponseCachingStream.GetBufferStream();
                 if (!contentLength.HasValue || contentLength == bufferStream.Length)
                 {
@@ -342,7 +326,7 @@ namespace Microsoft.AspNetCore.ResponseCaching
 
         internal Task OnResponseStartingAsync(ResponseCachingContext context)
         {
-            if (!context.ResponseStarted)
+            if (!context.ResponseStarted && context.ShouldCacheResponse)
             {
                 context.ResponseStarted = true;
                 context.ResponseTime = _options.SystemClock.UtcNow;
@@ -366,16 +350,19 @@ namespace Microsoft.AspNetCore.ResponseCaching
 
         internal void ShimResponseStream(ResponseCachingContext context)
         {
-            // Shim response stream
-            context.OriginalResponseStream = context.HttpContext.Response.Body;
-            context.ResponseCachingStream = new ResponseCachingStream(context.OriginalResponseStream, _options.MaximumBodySize, StreamUtilities.BodySegmentSize);
-            context.HttpContext.Response.Body = context.ResponseCachingStream;
-
-            // Shim IHttpSendFileFeature
-            context.OriginalSendFileFeature = context.HttpContext.Features.Get<IHttpSendFileFeature>();
-            if (context.OriginalSendFileFeature != null)
+            if (context.ShouldCacheResponse)
             {
-                context.HttpContext.Features.Set<IHttpSendFileFeature>(new SendFileFeatureWrapper(context.OriginalSendFileFeature, context.ResponseCachingStream));
+                // Shim response stream
+                context.OriginalResponseStream = context.HttpContext.Response.Body;
+                context.ResponseCachingStream = new ResponseCachingStream(context.OriginalResponseStream, _options.MaximumBodySize, StreamUtilities.BodySegmentSize);
+                context.HttpContext.Response.Body = context.ResponseCachingStream;
+
+                // Shim IHttpSendFileFeature
+                context.OriginalSendFileFeature = context.HttpContext.Features.Get<IHttpSendFileFeature>();
+                if (context.OriginalSendFileFeature != null)
+                {
+                    context.HttpContext.Features.Set<IHttpSendFileFeature>(new SendFileFeatureWrapper(context.OriginalSendFileFeature, context.ResponseCachingStream));
+                }
             }
 
             // Add IResponseCachingFeature
@@ -387,11 +374,14 @@ namespace Microsoft.AspNetCore.ResponseCaching
 
         internal static void UnshimResponseStream(ResponseCachingContext context)
         {
-            // Unshim response stream
-            context.HttpContext.Response.Body = context.OriginalResponseStream;
+            if (context.ShouldCacheResponse)
+            {
+                // Unshim response stream
+                context.HttpContext.Response.Body = context.OriginalResponseStream;
 
-            // Unshim IHttpSendFileFeature
-            context.HttpContext.Features.Set(context.OriginalSendFileFeature);
+                // Unshim IHttpSendFileFeature
+                context.HttpContext.Features.Set(context.OriginalSendFileFeature);
+            }
 
             // Remove IResponseCachingFeature
             RemoveResponseCachingFeature(context.HttpContext);

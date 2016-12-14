@@ -58,7 +58,7 @@ namespace Microsoft.AspNetCore.ResponseCaching.Internal
             return false;
         }
 
-        public bool BypassResponseBuffering(ResponseCachingContext context)
+        public bool BypassCacheStorage(ResponseCachingContext context)
         {
             // Check request no-store
             return HeaderUtilities.ContainsCacheDirective(context.HttpContext.Request.Headers[HeaderNames.CacheControl], CacheControlHeaderValue.NoStoreString);

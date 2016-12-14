@@ -14,7 +14,7 @@ namespace Microsoft.AspNetCore.ResponseCaching.Internal
 
         bool BypassCacheLookup(ResponseCachingContext context);
 
-        bool BypassResponseBuffering(ResponseCachingContext context);
+        bool BypassCacheStorage(ResponseCachingContext context);
 
         /// <summary>
         /// Determine whether the response received by the middleware be cached for future requests.
