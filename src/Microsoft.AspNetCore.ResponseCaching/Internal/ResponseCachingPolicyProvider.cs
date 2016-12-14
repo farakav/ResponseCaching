@@ -10,22 +10,30 @@ namespace Microsoft.AspNetCore.ResponseCaching.Internal
 {
     public class ResponseCachingPolicyProvider : IResponseCachingPolicyProvider
     {
-        public virtual bool IsRequestCacheable(ResponseCachingContext context)
+        public bool BypassResponseCaching(ResponseCachingContext context)
         {
-            // Verify the method
             var request = context.HttpContext.Request;
+
+            // Verify the method
             if (!HttpMethods.IsGet(request.Method) && !HttpMethods.IsHead(request.Method))
             {
                 context.Logger.LogRequestMethodNotCacheable(request.Method);
-                return false;
+                return true;
             }
 
             // Verify existence of authorization headers
             if (!StringValues.IsNullOrEmpty(request.Headers[HeaderNames.Authorization]))
             {
                 context.Logger.LogRequestWithAuthorizationNotCacheable();
-                return false;
+                return true;
             }
+
+            return false;
+        }
+
+        public bool BypassCacheLookup(ResponseCachingContext context)
+        {
+            var request = context.HttpContext.Request;
 
             // Verify request cache-control parameters
             if (!StringValues.IsNullOrEmpty(request.Headers[HeaderNames.CacheControl]))
@@ -33,7 +41,7 @@ namespace Microsoft.AspNetCore.ResponseCaching.Internal
                 if (HeaderUtilities.ContainsCacheDirective(request.Headers[HeaderNames.CacheControl], CacheControlHeaderValue.NoCacheString))
                 {
                     context.Logger.LogRequestWithNoCacheNotCacheable();
-                    return false;
+                    return true;
                 }
             }
             else
@@ -43,11 +51,17 @@ namespace Microsoft.AspNetCore.ResponseCaching.Internal
                 if (HeaderUtilities.ContainsCacheDirective(request.Headers[HeaderNames.Pragma], CacheControlHeaderValue.NoCacheString))
                 {
                     context.Logger.LogRequestWithPragmaNoCacheNotCacheable();
-                    return false;
+                    return true;
                 }
             }
 
-            return true;
+            return false;
+        }
+
+        public bool BypassResponseBuffering(ResponseCachingContext context)
+        {
+            // Check request no-store
+            return HeaderUtilities.ContainsCacheDirective(context.HttpContext.Request.Headers[HeaderNames.CacheControl], CacheControlHeaderValue.NoStoreString);
         }
 
         public virtual bool IsResponseCacheable(ResponseCachingContext context)
@@ -61,9 +75,8 @@ namespace Microsoft.AspNetCore.ResponseCaching.Internal
                 return false;
             }
 
-            // Check no-store
-            if (HeaderUtilities.ContainsCacheDirective(context.HttpContext.Request.Headers[HeaderNames.CacheControl], CacheControlHeaderValue.NoStoreString)
-                || HeaderUtilities.ContainsCacheDirective(responseCacheControlHeader, CacheControlHeaderValue.NoStoreString))
+            // Check response no-store
+            if (HeaderUtilities.ContainsCacheDirective(responseCacheControlHeader, CacheControlHeaderValue.NoStoreString))
             {
                 context.Logger.LogResponseWithNoStoreNotCacheable();
                 return false;
@@ -187,20 +200,23 @@ namespace Microsoft.AspNetCore.ResponseCaching.Internal
                 // Validate max age
                 if (age >= lowestMaxAge)
                 {
-                    // Must revalidate
-                    if (HeaderUtilities.ContainsCacheDirective(cachedCacheControlHeaders, CacheControlHeaderValue.MustRevalidateString))
+                    // Must revalidate or proxy revalidate
+                    if (HeaderUtilities.ContainsCacheDirective(cachedCacheControlHeaders, CacheControlHeaderValue.MustRevalidateString)
+                        || HeaderUtilities.ContainsCacheDirective(cachedCacheControlHeaders, CacheControlHeaderValue.ProxyRevalidateString))
                     {
                         context.Logger.LogExpirationMustRevalidate(age, lowestMaxAge.Value);
                         return false;
                     }
 
                     TimeSpan? requestMaxStale;
+                    var maxStaleExist = HeaderUtilities.ContainsCacheDirective(requestCacheControlHeaders, CacheControlHeaderValue.MaxStaleString);
                     HeaderUtilities.TryParseSeconds(requestCacheControlHeaders, CacheControlHeaderValue.MaxStaleString, out requestMaxStale);
 
                     // Request allows stale values
-                    if (requestMaxStale.HasValue && age - lowestMaxAge < requestMaxStale)
+                    if ((maxStaleExist && !requestMaxStale.HasValue)
+                        || (requestMaxStale.HasValue && age - lowestMaxAge < requestMaxStale))
                     {
-                        context.Logger.LogExpirationMaxStaleSatisfied(age, lowestMaxAge.Value, requestMaxStale.Value);
+                        context.Logger.LogExpirationMaxStaleSatisfied(age, lowestMaxAge.Value, requestMaxStale);
                         return true;
                     }
 

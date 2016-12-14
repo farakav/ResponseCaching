@@ -10,7 +10,11 @@ namespace Microsoft.AspNetCore.ResponseCaching.Internal
         /// </summary>
         /// <param name="context">The <see cref="ResponseCachingContext"/>.</param>
         /// <returns><c>true</c> if the request is cacheable; otherwise <c>false</c>.</returns>
-        bool IsRequestCacheable(ResponseCachingContext context);
+        bool BypassResponseCaching(ResponseCachingContext context);
+
+        bool BypassCacheLookup(ResponseCachingContext context);
+
+        bool BypassResponseBuffering(ResponseCachingContext context);
 
         /// <summary>
         /// Determine whether the response received by the middleware be cached for future requests.

@@ -74,33 +74,50 @@ namespace Microsoft.AspNetCore.ResponseCaching
             var context = new ResponseCachingContext(httpContext, _logger);
 
             // Should we attempt any caching logic?
-            if (_policyProvider.IsRequestCacheable(context))
+            if (!_policyProvider.BypassResponseCaching(context))
             {
                 // Can this request be served from cache?
-                if (await TryServeFromCacheAsync(context))
+                if (!_policyProvider.BypassCacheLookup(context) && await TryServeFromCacheAsync(context))
                 {
                     return;
                 }
 
-                // Hook up to listen to the response stream
-                ShimResponseStream(context);
-
-                try
+                if (!_policyProvider.BypassResponseBuffering(context))
                 {
-                    // Subscribe to OnStarting event
-                    httpContext.Response.OnStarting(_onStartingCallback, context);
+                    // Hook up to listen to the response stream
+                    ShimResponseStream(context);
 
-                    await _next(httpContext);
+                    try
+                    {
+                        // Subscribe to OnStarting event
+                        httpContext.Response.OnStarting(_onStartingCallback, context);
 
-                    // If there was no response body, check the response headers now. We can cache things like redirects.
-                    await OnResponseStartingAsync(context);
+                        await _next(httpContext);
 
-                    // Finalize the cache entry
-                    await FinalizeCacheBodyAsync(context);
+                        // If there was no response body, check the response headers now. We can cache things like redirects.
+                        await OnResponseStartingAsync(context);
+
+                        // Finalize the cache entry
+                        await FinalizeCacheBodyAsync(context);
+                    }
+                    finally
+                    {
+                        UnshimResponseStream(context);
+                    }
                 }
-                finally
+                else
                 {
-                    UnshimResponseStream(context);
+                    // Add IResponseCachingFeature which may be required when the response is generated
+                    AddResponseCachingFeature(httpContext);
+
+                    try
+                    {
+                        await _next(httpContext);
+                    }
+                    finally
+                    {
+                        RemoveResponseCachingFeature(httpContext);
+                    }
                 }
             }
             else
@@ -229,6 +246,12 @@ namespace Microsoft.AspNetCore.ResponseCaching
                     context.ResponseMaxAge ??
                     (context.ResponseExpires - context.ResponseTime.Value) ??
                     DefaultExpirationTimeSpan;
+
+                // Generate a base key if none exist
+                if (string.IsNullOrEmpty(context.BaseKey))
+                {
+                    context.BaseKey = _keyProvider.CreateBaseKey(context);
+                }
 
                 // Check if any vary rules exist
                 if (!StringValues.IsNullOrEmpty(varyHeaders) || !StringValues.IsNullOrEmpty(varyQueryKeys))

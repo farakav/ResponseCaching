@@ -19,7 +19,7 @@ namespace Microsoft.AspNetCore.ResponseCaching.Internal
         private static Action<ILogger, TimeSpan, Exception> _logExpirationMinFreshAdded;
         private static Action<ILogger, TimeSpan, TimeSpan, Exception> _logExpirationSharedMaxAgeExceeded;
         private static Action<ILogger, TimeSpan, TimeSpan, Exception> _logExpirationMustRevalidate;
-        private static Action<ILogger, TimeSpan, TimeSpan, TimeSpan, Exception> _logExpirationMaxStaleSatisfied;
+        private static Action<ILogger, TimeSpan, TimeSpan, TimeSpan?, Exception> _logExpirationMaxStaleSatisfied;
         private static Action<ILogger, TimeSpan, TimeSpan, Exception> _logExpirationMaxAgeExceeded;
         private static Action<ILogger, DateTimeOffset, DateTimeOffset, Exception> _logExpirationExpiresExceeded;
         private static Action<ILogger, Exception> _logResponseWithoutPublicNotCacheable;
@@ -70,11 +70,11 @@ namespace Microsoft.AspNetCore.ResponseCaching.Internal
             _logExpirationMustRevalidate = LoggerMessage.Define<TimeSpan, TimeSpan>(
                 logLevel: LogLevel.Debug,
                 eventId: 7,
-                formatString: "The age of the entry is {Age} and has exceeded the maximum age of {MaxAge} specified by the 'max-age' cache directive. It must be revalidated because the 'must-revalidate' cache directive is specified.");
-            _logExpirationMaxStaleSatisfied = LoggerMessage.Define<TimeSpan, TimeSpan, TimeSpan>(
+                formatString: "The age of the entry is {Age} and has exceeded the maximum age of {MaxAge} specified by the 'max-age' cache directive. It must be revalidated because the 'must-revalidate' or 'proxy-revalidate' cache directive is specified.");
+            _logExpirationMaxStaleSatisfied = LoggerMessage.Define<TimeSpan, TimeSpan, TimeSpan?>(
                 logLevel: LogLevel.Debug,
                 eventId: 8,
-                formatString: "The age of the entry is {Age} and has exceeded the maximum age of {MaxAge} specified by the 'max-age' cache directive. However, it satisfied the maximum stale allowance of {MaxStale} specified by the 'max-stale' cache directive.");
+                formatString: "The age of the entry is {Age} and has exceeded the maximum age of {MaxAge} specified by the 'max-age' cache directive. However, it satisfied the maximum stale allowance of {(MaxStale.HasValue ? MaxStale.Value : \"any age\")} specified by the 'max-stale' cache directive.");
             _logExpirationMaxAgeExceeded = LoggerMessage.Define<TimeSpan, TimeSpan>(
                 logLevel: LogLevel.Debug,
                 eventId: 9,
@@ -192,7 +192,7 @@ namespace Microsoft.AspNetCore.ResponseCaching.Internal
             _logExpirationMustRevalidate(logger, age, maxAge, null);
         }
 
-        internal static void LogExpirationMaxStaleSatisfied(this ILogger logger, TimeSpan age, TimeSpan maxAge, TimeSpan maxStale)
+        internal static void LogExpirationMaxStaleSatisfied(this ILogger logger, TimeSpan age, TimeSpan maxAge, TimeSpan? maxStale)
         {
             _logExpirationMaxStaleSatisfied(logger, age, maxAge, maxStale, null);
         }
