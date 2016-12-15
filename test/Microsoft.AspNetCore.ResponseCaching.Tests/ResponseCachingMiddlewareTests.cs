@@ -330,6 +330,67 @@ namespace Microsoft.AspNetCore.ResponseCaching.Tests
         }
 
         [Fact]
+        public async Task OnResponseStartingAsync_IfAllowResponseCaptureIsFalse_Noop()
+        {
+            var middleware = TestUtils.CreateTestMiddleware();
+            var context = TestUtils.CreateTestContext();
+            context.AllowResponseCapture = false;
+            context.ResponseTime = null;
+
+            Assert.Null(context.ResponseTime);
+
+            await middleware.OnResponseStartingAsync(context);
+
+            Assert.Null(context.ResponseTime);
+        }
+
+        [Fact]
+        public async Task OnResponseStartingAsync_IfAllowResponseCaptureIsTrue_SetsResponseTime()
+        {
+            var clock = new TestClock
+            {
+                UtcNow = DateTimeOffset.UtcNow
+            };
+            var middleware = TestUtils.CreateTestMiddleware(options: new ResponseCachingOptions
+            {
+                SystemClock = clock
+            });
+            var context = TestUtils.CreateTestContext();
+            context.AllowResponseCapture = true;
+            context.ResponseTime = null;
+
+            await middleware.OnResponseStartingAsync(context);
+
+            Assert.Equal(clock.UtcNow, context.ResponseTime);
+        }
+
+        [Fact]
+        public async Task OnResponseStartingAsync_IfAllowResponseCaptureIsTrue_SetsResponseTimeOnlyOnce()
+        {
+            var clock = new TestClock
+            {
+                UtcNow = DateTimeOffset.UtcNow
+            };
+            var middleware = TestUtils.CreateTestMiddleware(options: new ResponseCachingOptions
+            {
+                SystemClock = clock
+            });
+            var context = TestUtils.CreateTestContext();
+            var initialTime = clock.UtcNow;
+            context.AllowResponseCapture = true;
+            context.ResponseTime = null;
+
+            await middleware.OnResponseStartingAsync(context);
+            Assert.Equal(initialTime, context.ResponseTime);
+
+            clock.UtcNow += TimeSpan.FromSeconds(10);
+
+            await middleware.OnResponseStartingAsync(context);
+            Assert.NotEqual(clock.UtcNow, context.ResponseTime);
+            Assert.Equal(initialTime, context.ResponseTime);
+        }
+
+        [Fact]
         public async Task FinalizeCacheHeadersAsync_UpdateShouldCacheResponse_IfResponseCacheable()
         {
             var sink = new TestSink();
