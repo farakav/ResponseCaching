@@ -37,7 +37,9 @@ namespace Microsoft.AspNetCore.ResponseCaching.Internal
 
         internal ILogger Logger { get; }
 
-        internal bool ShouldCacheResponse { get;  set; }
+        internal bool AllowResponseCapture { get; set; }
+
+        internal bool ShouldCacheResponse { get; set; }
 
         internal string BaseKey { get;  set; }
 

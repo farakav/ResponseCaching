@@ -82,7 +82,7 @@ namespace Microsoft.AspNetCore.ResponseCaching
                     return;
                 }
 
-                context.ShouldCacheResponse = _policyProvider.AllowCacheStorage(context);
+                context.AllowResponseCapture = _policyProvider.AllowCacheStorage(context);
 
                 // Hook up to listen to the response stream
                 ShimResponseStream(context);
@@ -219,81 +219,84 @@ namespace Microsoft.AspNetCore.ResponseCaching
 
         internal async Task FinalizeCacheHeadersAsync(ResponseCachingContext context)
         {
-            if (context.ShouldCacheResponse)
+            if (!context.AllowResponseCapture)
             {
-                if (_policyProvider.IsResponseCacheable(context))
+                return;
+            }
+
+            if (_policyProvider.IsResponseCacheable(context))
+            {
+                context.ShouldCacheResponse = true;
+
+                // Create the cache entry now
+                var response = context.HttpContext.Response;
+                var varyHeaders = new StringValues(response.Headers.GetCommaSeparatedValues(HeaderNames.Vary));
+                var varyQueryKeys = new StringValues(context.HttpContext.Features.Get<IResponseCachingFeature>()?.VaryByQueryKeys);
+                context.CachedResponseValidFor = context.ResponseSharedMaxAge ??
+                    context.ResponseMaxAge ??
+                    (context.ResponseExpires - context.ResponseTime.Value) ??
+                    DefaultExpirationTimeSpan;
+
+                // Generate a base key if none exist
+                if (string.IsNullOrEmpty(context.BaseKey))
                 {
-                    // Create the cache entry now
-                    var response = context.HttpContext.Response;
-                    var varyHeaders = new StringValues(response.Headers.GetCommaSeparatedValues(HeaderNames.Vary));
-                    var varyQueryKeys = new StringValues(context.HttpContext.Features.Get<IResponseCachingFeature>()?.VaryByQueryKeys);
-                    context.CachedResponseValidFor = context.ResponseSharedMaxAge ??
-                        context.ResponseMaxAge ??
-                        (context.ResponseExpires - context.ResponseTime.Value) ??
-                        DefaultExpirationTimeSpan;
+                    context.BaseKey = _keyProvider.CreateBaseKey(context);
+                }
 
-                    // Generate a base key if none exist
-                    if (string.IsNullOrEmpty(context.BaseKey))
+                // Check if any vary rules exist
+                if (!StringValues.IsNullOrEmpty(varyHeaders) || !StringValues.IsNullOrEmpty(varyQueryKeys))
+                {
+                    // Normalize order and casing of vary by rules
+                    var normalizedVaryHeaders = GetOrderCasingNormalizedStringValues(varyHeaders);
+                    var normalizedVaryQueryKeys = GetOrderCasingNormalizedStringValues(varyQueryKeys);
+
+                    // Update vary rules if they are different
+                    if (context.CachedVaryByRules == null ||
+                        !StringValues.Equals(context.CachedVaryByRules.QueryKeys, normalizedVaryQueryKeys) ||
+                        !StringValues.Equals(context.CachedVaryByRules.Headers, normalizedVaryHeaders))
                     {
-                        context.BaseKey = _keyProvider.CreateBaseKey(context);
-                    }
-
-                    // Check if any vary rules exist
-                    if (!StringValues.IsNullOrEmpty(varyHeaders) || !StringValues.IsNullOrEmpty(varyQueryKeys))
-                    {
-                        // Normalize order and casing of vary by rules
-                        var normalizedVaryHeaders = GetOrderCasingNormalizedStringValues(varyHeaders);
-                        var normalizedVaryQueryKeys = GetOrderCasingNormalizedStringValues(varyQueryKeys);
-
-                        // Update vary rules if they are different
-                        if (context.CachedVaryByRules == null ||
-                            !StringValues.Equals(context.CachedVaryByRules.QueryKeys, normalizedVaryQueryKeys) ||
-                            !StringValues.Equals(context.CachedVaryByRules.Headers, normalizedVaryHeaders))
+                        context.CachedVaryByRules = new CachedVaryByRules
                         {
-                            context.CachedVaryByRules = new CachedVaryByRules
-                            {
-                                VaryByKeyPrefix = FastGuid.NewGuid().IdString,
-                                Headers = normalizedVaryHeaders,
-                                QueryKeys = normalizedVaryQueryKeys
-                            };
-                        }
-
-                        // Always overwrite the CachedVaryByRules to update the expiry information
-                        _logger.LogVaryByRulesUpdated(normalizedVaryHeaders, normalizedVaryQueryKeys);
-                        await _cache.SetAsync(context.BaseKey, context.CachedVaryByRules, context.CachedResponseValidFor);
-
-                        context.StorageVaryKey = _keyProvider.CreateStorageVaryByKey(context);
+                            VaryByKeyPrefix = FastGuid.NewGuid().IdString,
+                            Headers = normalizedVaryHeaders,
+                            QueryKeys = normalizedVaryQueryKeys
+                        };
                     }
 
-                    // Ensure date header is set
-                    if (!context.ResponseDate.HasValue)
-                    {
-                        context.ResponseDate = context.ResponseTime.Value;
-                        // Setting the date on the raw response headers.
-                        context.HttpContext.Response.Headers[HeaderNames.Date] = HeaderUtilities.FormatDate(context.ResponseDate.Value);
-                    }
+                    // Always overwrite the CachedVaryByRules to update the expiry information
+                    _logger.LogVaryByRulesUpdated(normalizedVaryHeaders, normalizedVaryQueryKeys);
+                    await _cache.SetAsync(context.BaseKey, context.CachedVaryByRules, context.CachedResponseValidFor);
 
-                    // Store the response on the state
-                    context.CachedResponse = new CachedResponse
-                    {
-                        Created = context.ResponseDate.Value,
-                        StatusCode = context.HttpContext.Response.StatusCode,
-                        Headers = new HeaderDictionary()
-                    };
+                    context.StorageVaryKey = _keyProvider.CreateStorageVaryByKey(context);
+                }
 
-                    foreach (var header in context.HttpContext.Response.Headers)
+                // Ensure date header is set
+                if (!context.ResponseDate.HasValue)
+                {
+                    context.ResponseDate = context.ResponseTime.Value;
+                    // Setting the date on the raw response headers.
+                    context.HttpContext.Response.Headers[HeaderNames.Date] = HeaderUtilities.FormatDate(context.ResponseDate.Value);
+                }
+
+                // Store the response on the state
+                context.CachedResponse = new CachedResponse
+                {
+                    Created = context.ResponseDate.Value,
+                    StatusCode = context.HttpContext.Response.StatusCode,
+                    Headers = new HeaderDictionary()
+                };
+
+                foreach (var header in context.HttpContext.Response.Headers)
+                {
+                    if (!string.Equals(header.Key, HeaderNames.Age, StringComparison.OrdinalIgnoreCase))
                     {
-                        if (!string.Equals(header.Key, HeaderNames.Age, StringComparison.OrdinalIgnoreCase))
-                        {
-                            context.CachedResponse.Headers.Add(header);
-                        }
+                        context.CachedResponse.Headers.Add(header);
                     }
                 }
-                else
-                {
-                    context.ShouldCacheResponse = false;
-                    context.ResponseCachingStream.DisableBuffering();
-                }
+            }
+            else
+            {
+                context.ResponseCachingStream.DisableBuffering();
             }
         }
 
@@ -329,7 +332,7 @@ namespace Microsoft.AspNetCore.ResponseCaching
 
         internal Task OnResponseStartingAsync(ResponseCachingContext context)
         {
-            if (!context.ResponseStarted && context.ShouldCacheResponse)
+            if (!context.ResponseStarted && context.AllowResponseCapture)
             {
                 context.ResponseStarted = true;
                 context.ResponseTime = _options.SystemClock.UtcNow;
@@ -353,7 +356,7 @@ namespace Microsoft.AspNetCore.ResponseCaching
 
         internal void ShimResponseStream(ResponseCachingContext context)
         {
-            if (context.ShouldCacheResponse)
+            if (context.AllowResponseCapture)
             {
                 // Shim response stream
                 context.OriginalResponseStream = context.HttpContext.Response.Body;
@@ -377,7 +380,7 @@ namespace Microsoft.AspNetCore.ResponseCaching
 
         internal static void UnshimResponseStream(ResponseCachingContext context)
         {
-            if (context.ShouldCacheResponse)
+            if (context.AllowResponseCapture)
             {
                 // Unshim response stream
                 context.HttpContext.Response.Body = context.OriginalResponseStream;
