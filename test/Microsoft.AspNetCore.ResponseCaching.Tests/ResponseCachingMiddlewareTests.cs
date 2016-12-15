@@ -159,14 +159,14 @@ namespace Microsoft.AspNetCore.ResponseCaching.Tests
         }
 
         [Fact]
-        public void ContentIsNotModified_IfUnmodifiedSince_FallsbackToDateHeader()
+        public void ContentIsNotModified_IfModifiedSince_FallsbackToDateHeader()
         {
             var utcNow = DateTimeOffset.UtcNow;
             var sink = new TestSink();
             var context = TestUtils.CreateTestContext(sink);
             context.CachedResponseHeaders = new HeaderDictionary();
 
-            context.HttpContext.Request.Headers[HeaderNames.IfUnmodifiedSince] = HeaderUtilities.FormatDate(utcNow);
+            context.HttpContext.Request.Headers[HeaderNames.IfModifiedSince] = HeaderUtilities.FormatDate(utcNow);
 
             // Verify modifications in the past succeeds
             context.CachedResponseHeaders[HeaderNames.Date] = HeaderUtilities.FormatDate(utcNow - TimeSpan.FromSeconds(10));
@@ -185,19 +185,19 @@ namespace Microsoft.AspNetCore.ResponseCaching.Tests
             // Verify logging
             TestUtils.AssertLoggedMessages(
                 sink.Writes,
-                LoggedMessage.NotModifiedIfUnmodifiedSinceSatisfied,
-                LoggedMessage.NotModifiedIfUnmodifiedSinceSatisfied);
+                LoggedMessage.NotModifiedIfModifiedSinceSatisfied,
+                LoggedMessage.NotModifiedIfModifiedSinceSatisfied);
         }
 
         [Fact]
-        public void ContentIsNotModified_IfUnmodifiedSince_LastModifiedOverridesDateHeader()
+        public void ContentIsNotModified_IfModifiedSince_LastModifiedOverridesDateHeader()
         {
             var utcNow = DateTimeOffset.UtcNow;
             var sink = new TestSink();
             var context = TestUtils.CreateTestContext(sink);
             context.CachedResponseHeaders = new HeaderDictionary();
 
-            context.HttpContext.Request.Headers[HeaderNames.IfUnmodifiedSince] = HeaderUtilities.FormatDate(utcNow);
+            context.HttpContext.Request.Headers[HeaderNames.IfModifiedSince] = HeaderUtilities.FormatDate(utcNow);
 
             // Verify modifications in the past succeeds
             context.CachedResponseHeaders[HeaderNames.Date] = HeaderUtilities.FormatDate(utcNow + TimeSpan.FromSeconds(10));
@@ -219,20 +219,20 @@ namespace Microsoft.AspNetCore.ResponseCaching.Tests
             // Verify logging
             TestUtils.AssertLoggedMessages(
                 sink.Writes,
-                LoggedMessage.NotModifiedIfUnmodifiedSinceSatisfied,
-                LoggedMessage.NotModifiedIfUnmodifiedSinceSatisfied);
+                LoggedMessage.NotModifiedIfModifiedSinceSatisfied,
+                LoggedMessage.NotModifiedIfModifiedSinceSatisfied);
         }
 
         [Fact]
-        public void ContentIsNotModified_IfNoneMatch_Overrides_IfUnmodifiedSince_ToTrue()
+        public void ContentIsNotModified_IfNoneMatch_Overrides_IfModifiedSince_ToTrue()
         {
             var utcNow = DateTimeOffset.UtcNow;
             var sink = new TestSink();
             var context = TestUtils.CreateTestContext(sink);
             context.CachedResponseHeaders = new HeaderDictionary();
 
-            // This would fail the IfUnmodifiedSince checks
-            context.HttpContext.Request.Headers[HeaderNames.IfUnmodifiedSince] = HeaderUtilities.FormatDate(utcNow);
+            // This would fail the IfModifiedSince checks
+            context.HttpContext.Request.Headers[HeaderNames.IfModifiedSince] = HeaderUtilities.FormatDate(utcNow);
             context.CachedResponseHeaders[HeaderNames.LastModified] = HeaderUtilities.FormatDate(utcNow + TimeSpan.FromSeconds(10));
 
             context.HttpContext.Request.Headers[HeaderNames.IfNoneMatch] = EntityTagHeaderValue.Any.ToString();
@@ -243,15 +243,15 @@ namespace Microsoft.AspNetCore.ResponseCaching.Tests
         }
 
         [Fact]
-        public void ContentIsNotModified_IfNoneMatch_Overrides_IfUnmodifiedSince_ToFalse()
+        public void ContentIsNotModified_IfNoneMatch_Overrides_IfModifiedSince_ToFalse()
         {
             var utcNow = DateTimeOffset.UtcNow;
             var sink = new TestSink();
             var context = TestUtils.CreateTestContext(sink);
             context.CachedResponseHeaders = new HeaderDictionary();
 
-            // This would pass the IfUnmodifiedSince checks
-            context.HttpContext.Request.Headers[HeaderNames.IfUnmodifiedSince] = HeaderUtilities.FormatDate(utcNow);
+            // This would pass the IfModifiedSince checks
+            context.HttpContext.Request.Headers[HeaderNames.IfModifiedSince] = HeaderUtilities.FormatDate(utcNow);
             context.CachedResponseHeaders[HeaderNames.LastModified] = HeaderUtilities.FormatDate(utcNow - TimeSpan.FromSeconds(10));
 
             context.HttpContext.Request.Headers[HeaderNames.IfNoneMatch] = "\"E1\"";

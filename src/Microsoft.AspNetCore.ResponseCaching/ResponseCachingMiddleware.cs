@@ -422,8 +422,8 @@ namespace Microsoft.AspNetCore.ResponseCaching
             }
             else
             {
-                var ifUnmodifiedSince = context.HttpContext.Request.Headers[HeaderNames.IfUnmodifiedSince];
-                if (!StringValues.IsNullOrEmpty(ifUnmodifiedSince))
+                var ifModifiedSince = context.HttpContext.Request.Headers[HeaderNames.IfModifiedSince];
+                if (!StringValues.IsNullOrEmpty(ifModifiedSince))
                 {
                     DateTimeOffset modified;
                     if (!HeaderUtilities.TryParseDate(cachedResponseHeaders[HeaderNames.LastModified], out modified) &&
@@ -432,11 +432,11 @@ namespace Microsoft.AspNetCore.ResponseCaching
                         return false;
                     }
 
-                    DateTimeOffset unmodifiedSince;
-                    if (HeaderUtilities.TryParseDate(ifUnmodifiedSince, out unmodifiedSince) &&
-                        modified <= unmodifiedSince)
+                    DateTimeOffset modifiedSince;
+                    if (HeaderUtilities.TryParseDate(ifModifiedSince, out modifiedSince) &&
+                        modified <= modifiedSince)
                     {
-                        context.Logger.LogNotModifiedIfUnmodifiedSinceSatisfied(modified, unmodifiedSince);
+                        context.Logger.LogNotModifiedIfModifiedSinceSatisfied(modified, modifiedSince);
                         return true;
                     }
                 }
