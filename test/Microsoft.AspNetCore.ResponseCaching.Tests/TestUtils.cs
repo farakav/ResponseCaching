@@ -233,15 +233,21 @@ namespace Microsoft.AspNetCore.ResponseCaching.Tests
 
     internal class TestResponseCachingPolicyProvider : IResponseCachingPolicyProvider
     {
-        public bool AllowCacheLookup(ResponseCachingContext context) => false;
+        public bool AllowCacheLookupValue { get; set; } = false;
+        public bool AllowCacheStorageValue { get; set; } = false;
+        public bool AllowResponseCachingValue { get; set; } = false;
+        public bool IsCachedEntryFreshValue { get; set; } = true;
+        public bool IsResponseCacheableValue { get; set; } = true;
 
-        public bool AllowCacheStorage(ResponseCachingContext context) => false;
+        public bool AllowCacheLookup(ResponseCachingContext context) => AllowCacheLookupValue;
 
-        public bool AllowResponseCaching(ResponseCachingContext context) => false;
+        public bool AllowCacheStorage(ResponseCachingContext context) => AllowCacheStorageValue;
 
-        public bool IsCachedEntryFresh(ResponseCachingContext context) => true;
+        public bool AllowResponseCaching(ResponseCachingContext context) => AllowResponseCachingValue;
 
-        public bool IsResponseCacheable(ResponseCachingContext context) => true;
+        public bool IsCachedEntryFresh(ResponseCachingContext context) => IsCachedEntryFreshValue;
+
+        public bool IsResponseCacheable(ResponseCachingContext context) => IsResponseCacheableValue;
     }
 
     internal class TestResponseCachingKeyProvider : IResponseCachingKeyProvider

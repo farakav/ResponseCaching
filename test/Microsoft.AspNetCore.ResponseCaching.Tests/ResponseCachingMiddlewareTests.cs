@@ -851,8 +851,17 @@ namespace Microsoft.AspNetCore.ResponseCaching.Tests
             public override void OnStarting(Func<object, Task> callback, object state) { }
         }
 
-        [Fact]
-        public async Task Invoke_CacheableRequest_AddsResponseCachingFeature()
+        [Theory]
+        // If allowResponseCaching is false, other settings will not matter but are included for completeness
+        [InlineData(false, false, false)]
+        [InlineData(false, false, true)]
+        [InlineData(false, true, false)]
+        [InlineData(false, true, true)]
+        [InlineData(true, false, false)]
+        [InlineData(true, false, true)]
+        [InlineData(true, true, false)]
+        [InlineData(true, true, true)]
+        public async Task Invoke_AddsResponseCachingFeature_Always(bool allowResponseCaching, bool allowCacheLookup, bool allowCacheStorage)
         {
             var responseCachingFeatureAdded = false;
             var middleware = TestUtils.CreateTestMiddleware(next: httpContext =>
@@ -860,29 +869,15 @@ namespace Microsoft.AspNetCore.ResponseCaching.Tests
                 responseCachingFeatureAdded = httpContext.Features.Get<IResponseCachingFeature>() != null;
                 return TaskCache.CompletedTask;
             },
-            policyProvider: new ResponseCachingPolicyProvider());
+            policyProvider: new TestResponseCachingPolicyProvider
+            {
+                AllowResponseCachingValue = allowResponseCaching,
+                AllowCacheLookupValue = allowCacheLookup,
+                AllowCacheStorageValue = allowCacheStorage
+            });
 
             var context = new DefaultHttpContext();
-            context.Request.Method = HttpMethods.Get;
             context.Features.Set<IHttpResponseFeature>(new FakeResponseFeature());
-            await middleware.Invoke(context);
-
-            Assert.True(responseCachingFeatureAdded);
-        }
-
-        [Fact]
-        public async Task Invoke_NonCacheableRequest_AddsResponseCachingFeature()
-        {
-            var responseCachingFeatureAdded = false;
-            var middleware = TestUtils.CreateTestMiddleware(next: httpContext =>
-            {
-                responseCachingFeatureAdded = httpContext.Features.Get<IResponseCachingFeature>() != null;
-                return TaskCache.CompletedTask;
-            },
-            policyProvider: new ResponseCachingPolicyProvider());
-
-            var context = new DefaultHttpContext();
-            context.Request.Method = HttpMethods.Post;
             await middleware.Invoke(context);
 
             Assert.True(responseCachingFeatureAdded);
