@@ -330,7 +330,7 @@ namespace Microsoft.AspNetCore.ResponseCaching.Tests
         }
 
         [Fact]
-        public async Task FinalizeCacheHeaders_UpdateShouldCacheResponse_IfResponseCacheable()
+        public async Task FinalizeCacheHeadersAsync_UpdateShouldCacheResponse_IfResponseCacheable()
         {
             var sink = new TestSink();
             var middleware = TestUtils.CreateTestMiddleware(testSink: sink, policyProvider: new ResponseCachingPolicyProvider());
@@ -351,7 +351,7 @@ namespace Microsoft.AspNetCore.ResponseCaching.Tests
         }
 
         [Fact]
-        public async Task FinalizeCacheHeaders_DoNotUpdateShouldCacheResponse_IfResponseIsNotCacheable()
+        public async Task FinalizeCacheHeadersAsync_DoNotUpdateShouldCacheResponse_IfResponseIsNotCacheable()
         {
             var sink = new TestSink();
             var middleware = TestUtils.CreateTestMiddleware(testSink: sink, policyProvider: new ResponseCachingPolicyProvider());
@@ -367,7 +367,7 @@ namespace Microsoft.AspNetCore.ResponseCaching.Tests
         }
 
         [Fact]
-        public async Task FinalizeCacheHeaders_DefaultResponseValidity_Is10Seconds()
+        public async Task FinalizeCacheHeadersAsync_DefaultResponseValidity_Is10Seconds()
         {
             var sink = new TestSink();
             var middleware = TestUtils.CreateTestMiddleware(testSink: sink);
@@ -382,16 +382,22 @@ namespace Microsoft.AspNetCore.ResponseCaching.Tests
         }
 
         [Fact]
-        public async Task FinalizeCacheHeaders_ResponseValidity_UseExpiryIfAvailable()
+        public async Task FinalizeCacheHeadersAsync_ResponseValidity_UseExpiryIfAvailable()
         {
-            var utcNow = DateTimeOffset.MinValue;
+            var clock = new TestClock
+            {
+                UtcNow = DateTimeOffset.MinValue
+            };
             var sink = new TestSink();
-            var middleware = TestUtils.CreateTestMiddleware(testSink: sink);
+            var middleware = TestUtils.CreateTestMiddleware(testSink: sink, options: new ResponseCachingOptions
+            {
+                SystemClock = clock
+            });
             var context = TestUtils.CreateTestContext();
 
             context.AllowResponseCapture = true;
-            context.ResponseTime = utcNow;
-            context.HttpContext.Response.Headers[HeaderNames.Expires] = HeaderUtilities.FormatDate(utcNow + TimeSpan.FromSeconds(11));
+            context.ResponseTime = clock.UtcNow;
+            context.HttpContext.Response.Headers[HeaderNames.Expires] = HeaderUtilities.FormatDate(clock.UtcNow + TimeSpan.FromSeconds(11));
 
             await middleware.FinalizeCacheHeadersAsync(context);
 
@@ -400,19 +406,27 @@ namespace Microsoft.AspNetCore.ResponseCaching.Tests
         }
 
         [Fact]
-        public async Task FinalizeCacheHeaders_ResponseValidity_UseMaxAgeIfAvailable()
+        public async Task FinalizeCacheHeadersAsync_ResponseValidity_UseMaxAgeIfAvailable()
         {
+            var clock = new TestClock
+            {
+                UtcNow = DateTimeOffset.UtcNow
+            };
             var sink = new TestSink();
-            var middleware = TestUtils.CreateTestMiddleware(testSink: sink);
+            var middleware = TestUtils.CreateTestMiddleware(testSink: sink, options: new ResponseCachingOptions
+            {
+                SystemClock = clock
+            });
             var context = TestUtils.CreateTestContext();
 
             context.AllowResponseCapture = true;
+            context.ResponseTime = clock.UtcNow;
             context.HttpContext.Response.Headers[HeaderNames.CacheControl] = new CacheControlHeaderValue()
             {
                 MaxAge = TimeSpan.FromSeconds(12)
             }.ToString();
 
-            context.HttpContext.Response.Headers[HeaderNames.Expires] = HeaderUtilities.FormatDate(context.ResponseTime.Value + TimeSpan.FromSeconds(11));
+            context.HttpContext.Response.Headers[HeaderNames.Expires] = HeaderUtilities.FormatDate(clock.UtcNow + TimeSpan.FromSeconds(11));
 
             await middleware.FinalizeCacheHeadersAsync(context);
 
@@ -421,19 +435,27 @@ namespace Microsoft.AspNetCore.ResponseCaching.Tests
         }
 
         [Fact]
-        public async Task FinalizeCacheHeaders_ResponseValidity_UseSharedMaxAgeIfAvailable()
+        public async Task FinalizeCacheHeadersAsync_ResponseValidity_UseSharedMaxAgeIfAvailable()
         {
+            var clock = new TestClock
+            {
+                UtcNow = DateTimeOffset.UtcNow
+            };
             var sink = new TestSink();
-            var middleware = TestUtils.CreateTestMiddleware(testSink: sink);
+            var middleware = TestUtils.CreateTestMiddleware(testSink: sink, options: new ResponseCachingOptions
+            {
+                SystemClock = clock
+            });
             var context = TestUtils.CreateTestContext();
 
             context.AllowResponseCapture = true;
+            context.ResponseTime = clock.UtcNow;
             context.HttpContext.Response.Headers[HeaderNames.CacheControl] = new CacheControlHeaderValue()
             {
                 MaxAge = TimeSpan.FromSeconds(12),
                 SharedMaxAge = TimeSpan.FromSeconds(13)
             }.ToString();
-            context.HttpContext.Response.Headers[HeaderNames.Expires] = HeaderUtilities.FormatDate(context.ResponseTime.Value + TimeSpan.FromSeconds(11));
+            context.HttpContext.Response.Headers[HeaderNames.Expires] = HeaderUtilities.FormatDate(clock.UtcNow + TimeSpan.FromSeconds(11));
 
             await middleware.FinalizeCacheHeadersAsync(context);
 
@@ -442,7 +464,7 @@ namespace Microsoft.AspNetCore.ResponseCaching.Tests
         }
 
         [Fact]
-        public async Task FinalizeCacheHeaders_UpdateCachedVaryByRules_IfNotEquivalentToPrevious()
+        public async Task FinalizeCacheHeadersAsync_UpdateCachedVaryByRules_IfNotEquivalentToPrevious()
         {
             var cache = new TestResponseCache();
             var sink = new TestSink();
@@ -472,7 +494,7 @@ namespace Microsoft.AspNetCore.ResponseCaching.Tests
         }
 
         [Fact]
-        public async Task FinalizeCacheHeaders_UpdateCachedVaryByRules_IfEquivalentToPrevious()
+        public async Task FinalizeCacheHeadersAsync_UpdateCachedVaryByRules_IfEquivalentToPrevious()
         {
             var cache = new TestResponseCache();
             var sink = new TestSink();
@@ -493,7 +515,6 @@ namespace Microsoft.AspNetCore.ResponseCaching.Tests
             };
             context.CachedVaryByRules = cachedVaryByRules;
 
-            await middleware.TryServeFromCacheAsync(context);
             await middleware.FinalizeCacheHeadersAsync(context);
 
             // An update to the cache is always made but the entry should be the same
@@ -501,7 +522,6 @@ namespace Microsoft.AspNetCore.ResponseCaching.Tests
             Assert.Same(cachedVaryByRules, context.CachedVaryByRules);
             TestUtils.AssertLoggedMessages(
                 sink.Writes,
-                LoggedMessage.NoResponseServed,
                 LoggedMessage.VaryByRulesUpdated);
         }
 
@@ -525,7 +545,7 @@ namespace Microsoft.AspNetCore.ResponseCaching.Tests
 
         [Theory]
         [MemberData(nameof(NullOrEmptyVaryRules))]
-        public async Task FinalizeCacheHeaders_UpdateCachedVaryByRules_NullOrEmptyRules(StringValues vary)
+        public async Task FinalizeCacheHeadersAsync_UpdateCachedVaryByRules_NullOrEmptyRules(StringValues vary)
         {
             var cache = new TestResponseCache();
             var sink = new TestSink();
@@ -539,37 +559,39 @@ namespace Microsoft.AspNetCore.ResponseCaching.Tests
                 VaryByQueryKeys = vary
             });
 
-            await middleware.TryServeFromCacheAsync(context);
             await middleware.FinalizeCacheHeadersAsync(context);
 
             // Vary rules should not be updated
             Assert.Equal(0, cache.SetCount);
-            TestUtils.AssertLoggedMessages(
-                sink.Writes,
-                LoggedMessage.NoResponseServed);
+            Assert.Empty(sink.Writes);
         }
 
         [Fact]
-        public async Task FinalizeCacheHeaders_DoNotAddDate_IfSpecified()
+        public async Task FinalizeCacheHeadersAsync_AddsDate_IfNoneSpecified()
         {
-            var utcNow = DateTimeOffset.MinValue;
+            var clock = new TestClock
+            {
+                UtcNow = DateTimeOffset.UtcNow
+            };
             var sink = new TestSink();
-            var middleware = TestUtils.CreateTestMiddleware(testSink: sink);
+            var middleware = TestUtils.CreateTestMiddleware(testSink: sink, options: new ResponseCachingOptions
+            {
+                SystemClock = clock
+            });
             var context = TestUtils.CreateTestContext();
 
             context.AllowResponseCapture = true;
-            context.ResponseTime = utcNow;
 
             Assert.True(StringValues.IsNullOrEmpty(context.HttpContext.Response.Headers[HeaderNames.Date]));
 
             await middleware.FinalizeCacheHeadersAsync(context);
 
-            Assert.Equal(HeaderUtilities.FormatDate(utcNow), context.HttpContext.Response.Headers[HeaderNames.Date]);
+            Assert.Equal(HeaderUtilities.FormatDate(clock.UtcNow), context.HttpContext.Response.Headers[HeaderNames.Date]);
             Assert.Empty(sink.Writes);
         }
 
         [Fact]
-        public async Task FinalizeCacheHeaders_AddsDate_IfNoneSpecified()
+        public async Task FinalizeCacheHeadersAsync_DoNotAddDate_IfSpecified()
         {
             var utcNow = DateTimeOffset.MinValue;
             var sink = new TestSink();
@@ -589,7 +611,7 @@ namespace Microsoft.AspNetCore.ResponseCaching.Tests
         }
 
         [Fact]
-        public async Task FinalizeCacheHeaders_StoresCachedResponse_InState()
+        public async Task FinalizeCacheHeadersAsync_StoresCachedResponse_InState()
         {
             var sink = new TestSink();
             var middleware = TestUtils.CreateTestMiddleware(testSink: sink);
@@ -606,7 +628,7 @@ namespace Microsoft.AspNetCore.ResponseCaching.Tests
         }
 
         [Fact]
-        public async Task FinalizeCacheHeaders_SplitsVaryHeaderByCommas()
+        public async Task FinalizeCacheHeadersAsync_SplitsVaryHeaderByCommas()
         {
             var sink = new TestSink();
             var middleware = TestUtils.CreateTestMiddleware(testSink: sink);

@@ -219,11 +219,6 @@ namespace Microsoft.AspNetCore.ResponseCaching
 
         internal async Task FinalizeCacheHeadersAsync(ResponseCachingContext context)
         {
-            if (!context.AllowResponseCapture)
-            {
-                return;
-            }
-
             if (_policyProvider.IsResponseCacheable(context))
             {
                 context.ShouldCacheResponse = true;
@@ -332,7 +327,7 @@ namespace Microsoft.AspNetCore.ResponseCaching
 
         internal Task OnResponseStartingAsync(ResponseCachingContext context)
         {
-            if (!context.ResponseStarted && context.AllowResponseCapture)
+            if (context.AllowResponseCapture && !context.ResponseStarted)
             {
                 context.ResponseStarted = true;
                 context.ResponseTime = _options.SystemClock.UtcNow;

@@ -20,6 +20,7 @@ using Microsoft.Extensions.Options;
 using Microsoft.Extensions.Primitives;
 using Microsoft.Net.Http.Headers;
 using Xunit;
+using ISystemClock = Microsoft.AspNetCore.ResponseCaching.Internal.ISystemClock;
 
 namespace Microsoft.AspNetCore.ResponseCaching.Tests
 {
@@ -301,5 +302,10 @@ namespace Microsoft.AspNetCore.ResponseCaching.Tests
             _storage[key] = entry;
             return TaskCache.CompletedTask;
         }
+    }
+
+    internal class TestClock : ISystemClock
+    {
+        public DateTimeOffset UtcNow { get; set; }
     }
 }
