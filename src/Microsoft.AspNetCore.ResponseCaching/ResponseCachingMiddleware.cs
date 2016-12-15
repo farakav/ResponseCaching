@@ -74,15 +74,15 @@ namespace Microsoft.AspNetCore.ResponseCaching
             var context = new ResponseCachingContext(httpContext, _logger);
 
             // Should we attempt any caching logic?
-            if (!_policyProvider.BypassResponseCaching(context))
+            if (_policyProvider.AllowResponseCaching(context))
             {
                 // Can this request be served from cache?
-                if (!_policyProvider.BypassCacheLookup(context) && await TryServeFromCacheAsync(context))
+                if (_policyProvider.AllowCacheLookup(context) && await TryServeFromCacheAsync(context))
                 {
                     return;
                 }
 
-                context.ShouldCacheResponse = !_policyProvider.BypassCacheStorage(context);
+                context.ShouldCacheResponse = _policyProvider.AllowCacheStorage(context);
 
                 // Hook up to listen to the response stream
                 ShimResponseStream(context);

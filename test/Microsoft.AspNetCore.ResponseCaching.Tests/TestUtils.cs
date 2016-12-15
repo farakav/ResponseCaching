@@ -224,11 +224,11 @@ namespace Microsoft.AspNetCore.ResponseCaching.Tests
 
     internal class TestResponseCachingPolicyProvider : IResponseCachingPolicyProvider
     {
-        public bool BypassCacheLookup(ResponseCachingContext context) => false;
+        public bool AllowCacheLookup(ResponseCachingContext context) => false;
 
-        public bool BypassCacheStorage(ResponseCachingContext context) => false;
+        public bool AllowCacheStorage(ResponseCachingContext context) => false;
 
-        public bool BypassResponseCaching(ResponseCachingContext context) => false;
+        public bool AllowResponseCaching(ResponseCachingContext context) => false;
 
         public bool IsCachedEntryFresh(ResponseCachingContext context) => true;
 

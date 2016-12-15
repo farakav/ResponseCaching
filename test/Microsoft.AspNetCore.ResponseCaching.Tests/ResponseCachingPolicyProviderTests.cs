@@ -27,13 +27,13 @@ namespace Microsoft.AspNetCore.ResponseCaching.Tests
 
         [Theory]
         [MemberData(nameof(CacheableMethods))]
-        public void BypassResponseCaching_CacheableMethods_NotBypassed(string method)
+        public void AllowResponseCaching_CacheableMethods_Allowed(string method)
         {
             var sink = new TestSink();
             var context = TestUtils.CreateTestContext(sink);
             context.HttpContext.Request.Method = method;
 
-            Assert.False(new ResponseCachingPolicyProvider().BypassResponseCaching(context));
+            Assert.True(new ResponseCachingPolicyProvider().AllowResponseCaching(context));
             Assert.Empty(sink.Writes);
         }
         public static TheoryData<string> NonCacheableMethods
@@ -56,34 +56,34 @@ namespace Microsoft.AspNetCore.ResponseCaching.Tests
 
         [Theory]
         [MemberData(nameof(NonCacheableMethods))]
-        public void BypassResponseCaching_UncacheableMethods_NotAllowed(string method)
+        public void AllowResponseCaching_UncacheableMethods_NotAllowed(string method)
         {
             var sink = new TestSink();
             var context = TestUtils.CreateTestContext(sink);
             context.HttpContext.Request.Method = method;
 
-            Assert.True(new ResponseCachingPolicyProvider().BypassResponseCaching(context));
+            Assert.False(new ResponseCachingPolicyProvider().AllowResponseCaching(context));
             TestUtils.AssertLoggedMessages(
                 sink.Writes,
                 LoggedMessage.RequestMethodNotCacheable);
         }
 
         [Fact]
-        public void BypassResponseCaching_AuthorizationHeaders_NotAllowed()
+        public void AllowResponseCaching_AuthorizationHeaders_NotAllowed()
         {
             var sink = new TestSink();
             var context = TestUtils.CreateTestContext(sink);
             context.HttpContext.Request.Method = HttpMethods.Get;
             context.HttpContext.Request.Headers[HeaderNames.Authorization] = "Basic plaintextUN:plaintextPW";
 
-            Assert.True(new ResponseCachingPolicyProvider().BypassResponseCaching(context));
+            Assert.False(new ResponseCachingPolicyProvider().AllowResponseCaching(context));
             TestUtils.AssertLoggedMessages(
                 sink.Writes,
                 LoggedMessage.RequestWithAuthorizationNotCacheable);
         }
 
         [Fact]
-        public void BypassCacheLookup_NoCache_NotAllowed()
+        public void AllowCacheLookup_NoCache_NotAllowed()
         {
             var sink = new TestSink();
             var context = TestUtils.CreateTestContext(sink);
@@ -93,28 +93,28 @@ namespace Microsoft.AspNetCore.ResponseCaching.Tests
                 NoCache = true
             }.ToString();
 
-            Assert.True(new ResponseCachingPolicyProvider().BypassCacheLookup(context));
+            Assert.False(new ResponseCachingPolicyProvider().AllowCacheLookup(context));
             TestUtils.AssertLoggedMessages(
                 sink.Writes,
                 LoggedMessage.RequestWithNoCacheNotCacheable);
         }
 
         [Fact]
-        public void BypassCacheLookup_LegacyDirectives_NotAllowed()
+        public void AllowCacheLookup_LegacyDirectives_NotAllowed()
         {
             var sink = new TestSink();
             var context = TestUtils.CreateTestContext(sink);
             context.HttpContext.Request.Method = HttpMethods.Get;
             context.HttpContext.Request.Headers[HeaderNames.Pragma] = "no-cache";
 
-            Assert.True(new ResponseCachingPolicyProvider().BypassCacheLookup(context));
+            Assert.False(new ResponseCachingPolicyProvider().AllowCacheLookup(context));
             TestUtils.AssertLoggedMessages(
                 sink.Writes,
                 LoggedMessage.RequestWithPragmaNoCacheNotCacheable);
         }
 
         [Fact]
-        public void BypassCacheLookup_LegacyDirectives_OverridenByCacheControl()
+        public void AllowCacheLookup_LegacyDirectives_OverridenByCacheControl()
         {
             var sink = new TestSink();
             var context = TestUtils.CreateTestContext(sink);
@@ -122,12 +122,12 @@ namespace Microsoft.AspNetCore.ResponseCaching.Tests
             context.HttpContext.Request.Headers[HeaderNames.Pragma] = "no-cache";
             context.HttpContext.Request.Headers[HeaderNames.CacheControl] = "max-age=10";
 
-            Assert.False(new ResponseCachingPolicyProvider().BypassCacheLookup(context));
+            Assert.True(new ResponseCachingPolicyProvider().AllowCacheLookup(context));
             Assert.Empty(sink.Writes);
         }
 
         [Fact]
-        public void BypassResponseBuffering_NoStore_True()
+        public void AllowCacheStorage_NoStore_NotAllowed()
         {
             var sink = new TestSink();
             var context = TestUtils.CreateTestContext(sink);
@@ -137,7 +137,7 @@ namespace Microsoft.AspNetCore.ResponseCaching.Tests
                 NoStore = true
             }.ToString();
 
-            Assert.True(new ResponseCachingPolicyProvider().BypassCacheStorage(context));
+            Assert.False(new ResponseCachingPolicyProvider().AllowCacheStorage(context));
             Assert.Empty(sink.Writes);
         }
 

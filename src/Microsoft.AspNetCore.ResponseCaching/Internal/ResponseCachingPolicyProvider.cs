@@ -10,7 +10,7 @@ namespace Microsoft.AspNetCore.ResponseCaching.Internal
 {
     public class ResponseCachingPolicyProvider : IResponseCachingPolicyProvider
     {
-        public virtual bool BypassResponseCaching(ResponseCachingContext context)
+        public virtual bool AllowResponseCaching(ResponseCachingContext context)
         {
             var request = context.HttpContext.Request;
 
@@ -18,20 +18,20 @@ namespace Microsoft.AspNetCore.ResponseCaching.Internal
             if (!HttpMethods.IsGet(request.Method) && !HttpMethods.IsHead(request.Method))
             {
                 context.Logger.LogRequestMethodNotCacheable(request.Method);
-                return true;
+                return false;
             }
 
             // Verify existence of authorization headers
             if (!StringValues.IsNullOrEmpty(request.Headers[HeaderNames.Authorization]))
             {
                 context.Logger.LogRequestWithAuthorizationNotCacheable();
-                return true;
+                return false;
             }
 
-            return false;
+            return true;
         }
 
-        public virtual bool BypassCacheLookup(ResponseCachingContext context)
+        public virtual bool AllowCacheLookup(ResponseCachingContext context)
         {
             var request = context.HttpContext.Request;
 
@@ -41,7 +41,7 @@ namespace Microsoft.AspNetCore.ResponseCaching.Internal
                 if (HeaderUtilities.ContainsCacheDirective(request.Headers[HeaderNames.CacheControl], CacheControlHeaderValue.NoCacheString))
                 {
                     context.Logger.LogRequestWithNoCacheNotCacheable();
-                    return true;
+                    return false;
                 }
             }
             else
@@ -51,17 +51,17 @@ namespace Microsoft.AspNetCore.ResponseCaching.Internal
                 if (HeaderUtilities.ContainsCacheDirective(request.Headers[HeaderNames.Pragma], CacheControlHeaderValue.NoCacheString))
                 {
                     context.Logger.LogRequestWithPragmaNoCacheNotCacheable();
-                    return true;
+                    return false;
                 }
             }
 
-            return false;
+            return true;
         }
 
-        public virtual bool BypassCacheStorage(ResponseCachingContext context)
+        public virtual bool AllowCacheStorage(ResponseCachingContext context)
         {
             // Check request no-store
-            return HeaderUtilities.ContainsCacheDirective(context.HttpContext.Request.Headers[HeaderNames.CacheControl], CacheControlHeaderValue.NoStoreString);
+            return !HeaderUtilities.ContainsCacheDirective(context.HttpContext.Request.Headers[HeaderNames.CacheControl], CacheControlHeaderValue.NoStoreString);
         }
 
         public virtual bool IsResponseCacheable(ResponseCachingContext context)
