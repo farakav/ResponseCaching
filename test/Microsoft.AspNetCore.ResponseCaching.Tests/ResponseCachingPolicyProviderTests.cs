@@ -83,6 +83,21 @@ namespace Microsoft.AspNetCore.ResponseCaching.Tests
         }
 
         [Fact]
+        public void AllowCacheStorage_NoStore_Allowed()
+        {
+            var sink = new TestSink();
+            var context = TestUtils.CreateTestContext(sink);
+            context.HttpContext.Request.Method = HttpMethods.Get;
+            context.HttpContext.Request.Headers[HeaderNames.CacheControl] = new CacheControlHeaderValue()
+            {
+                NoStore = true
+            }.ToString();
+
+            Assert.True(new ResponseCachingPolicyProvider().AllowCacheLookup(context));
+            Assert.Empty(sink.Writes);
+        }
+
+        [Fact]
         public void AllowCacheLookup_NoCache_NotAllowed()
         {
             var sink = new TestSink();

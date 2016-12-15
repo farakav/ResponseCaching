@@ -621,6 +621,31 @@ namespace Microsoft.AspNetCore.ResponseCaching.Tests
         }
 
         [Fact]
+        public async void ServesFreshContent_IfInitialResponseContainsNoStore()
+        {
+            var builders = TestUtils.CreateBuildersWithResponseCaching(requestDelegate: async (context) =>
+            {
+                var headers = context.Response.GetTypedHeaders().CacheControl = new CacheControlHeaderValue()
+                {
+                    NoStore = true
+                };
+                await TestUtils.TestRequestDelegate(context);
+            });
+
+            foreach (var builder in builders)
+            {
+                using (var server = new TestServer(builder))
+                {
+                    var client = server.CreateClient();
+                    var initialResponse = await client.GetAsync("");
+                    var subsequentResponse = await client.GetAsync("");
+
+                    await AssertFreshResponseAsync(initialResponse, subsequentResponse);
+                }
+            }
+        }
+
+        [Fact]
         public async void Serves304_IfIfModifiedSince_Satisfied()
         {
             var builders = TestUtils.CreateBuildersWithResponseCaching();

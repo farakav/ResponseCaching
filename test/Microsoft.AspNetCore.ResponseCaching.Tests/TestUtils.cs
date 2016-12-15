@@ -42,11 +42,19 @@ namespace Microsoft.AspNetCore.ResponseCaching.Tests
             }
 
             var uniqueId = Guid.NewGuid().ToString();
-            headers.CacheControl = new CacheControlHeaderValue
+            if (headers.CacheControl == null)
             {
-                Public = true,
-                MaxAge = string.IsNullOrEmpty(expires) ? TimeSpan.FromSeconds(10) : (TimeSpan?)null
-            };
+                headers.CacheControl = new CacheControlHeaderValue
+                {
+                    Public = true,
+                    MaxAge = string.IsNullOrEmpty(expires) ? TimeSpan.FromSeconds(10) : (TimeSpan?)null
+                };
+            }
+            else
+            {
+                headers.CacheControl.Public = true;
+                headers.CacheControl.MaxAge = string.IsNullOrEmpty(expires) ? TimeSpan.FromSeconds(10) : (TimeSpan?)null;
+            }
             headers.Date = DateTimeOffset.UtcNow;
             headers.Headers["X-Value"] = uniqueId;
 
