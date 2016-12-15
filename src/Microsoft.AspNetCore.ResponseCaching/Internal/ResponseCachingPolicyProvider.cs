@@ -212,11 +212,17 @@ namespace Microsoft.AspNetCore.ResponseCaching.Internal
                     var maxStaleExist = HeaderUtilities.ContainsCacheDirective(requestCacheControlHeaders, CacheControlHeaderValue.MaxStaleString);
                     HeaderUtilities.TryParseSeconds(requestCacheControlHeaders, CacheControlHeaderValue.MaxStaleString, out requestMaxStale);
 
-                    // Request allows stale values
-                    if ((maxStaleExist && !requestMaxStale.HasValue)
-                        || (requestMaxStale.HasValue && age - lowestMaxAge < requestMaxStale))
+                    // Request allows stale values no age limit
+                    if (maxStaleExist && !requestMaxStale.HasValue)
                     {
-                        context.Logger.LogExpirationMaxStaleSatisfied(age, lowestMaxAge.Value, requestMaxStale);
+                        context.Logger.LogExpirationInfiniteMaxStaleSatisfied(age, lowestMaxAge.Value);
+                        return true;
+                    }
+
+                    // Request allows stale values with age limit
+                    if (requestMaxStale.HasValue && age - lowestMaxAge < requestMaxStale)
+                    {
+                        context.Logger.LogExpirationMaxStaleSatisfied(age, lowestMaxAge.Value, requestMaxStale.Value);
                         return true;
                     }
 

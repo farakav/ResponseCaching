@@ -687,7 +687,7 @@ namespace Microsoft.AspNetCore.ResponseCaching.Tests
             Assert.True(new ResponseCachingPolicyProvider().IsCachedEntryFresh(context));
             TestUtils.AssertLoggedMessages(
                 sink.Writes,
-                LoggedMessage.ExpirationMaxStaleSatisfied);
+                LoggedMessage.ExpirationInfiniteMaxStaleSatisfied);
         }
 
         [Fact]
