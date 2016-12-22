@@ -252,10 +252,10 @@ namespace Microsoft.AspNetCore.ResponseCaching.Tests
 
     internal class TestResponseCachingKeyProvider : IResponseCachingKeyProvider
     {
-        private readonly string _baseKey;
+        private readonly object _baseKey;
         private readonly StringValues _varyKey;
 
-        public TestResponseCachingKeyProvider(string lookupBaseKey = null, StringValues? lookupVaryKey = null)
+        public TestResponseCachingKeyProvider(object lookupBaseKey = null, StringValues? lookupVaryKey = null)
         {
             _baseKey = lookupBaseKey;
             if (lookupVaryKey.HasValue)
@@ -264,7 +264,7 @@ namespace Microsoft.AspNetCore.ResponseCaching.Tests
             }
         }
 
-        public IEnumerable<string> CreateLookupVaryByKeys(ResponseCachingContext context)
+        public IEnumerable<object> CreateLookupVaryByKeys(ResponseCachingContext context)
         {
             foreach (var varyKey in _varyKey)
             {
@@ -272,12 +272,12 @@ namespace Microsoft.AspNetCore.ResponseCaching.Tests
             }
         }
 
-        public string CreateBaseKey(ResponseCachingContext context)
+        public object CreateBaseKey(ResponseCachingContext context)
         {
             return _baseKey;
         }
 
-        public string CreateStorageVaryByKey(ResponseCachingContext context)
+        public object CreateStorageVaryByKey(ResponseCachingContext context)
         {
             throw new NotImplementedException();
         }
@@ -285,11 +285,11 @@ namespace Microsoft.AspNetCore.ResponseCaching.Tests
 
     internal class TestResponseCache : IResponseCache
     {
-        private readonly IDictionary<string, IResponseCacheEntry> _storage = new Dictionary<string, IResponseCacheEntry>();
+        private readonly IDictionary<object, IResponseCacheEntry> _storage = new Dictionary<object, IResponseCacheEntry>();
         public int GetCount { get; private set; }
         public int SetCount { get; private set; }
 
-        public Task<IResponseCacheEntry> GetAsync(string key)
+        public Task<IResponseCacheEntry> GetAsync(object key)
         {
             GetCount++;
             try
@@ -302,7 +302,7 @@ namespace Microsoft.AspNetCore.ResponseCaching.Tests
             }
         }
 
-        public Task SetAsync(string key, IResponseCacheEntry entry, TimeSpan validFor)
+        public Task SetAsync(object key, IResponseCacheEntry entry, TimeSpan validFor)
         {
             SetCount++;
             _storage[key] = entry;

@@ -233,7 +233,7 @@ namespace Microsoft.AspNetCore.ResponseCaching
                     DefaultExpirationTimeSpan;
 
                 // Generate a base key if none exist
-                if (string.IsNullOrEmpty(context.BaseKey))
+                if (context.BaseKey == null)
                 {
                     context.BaseKey = _keyProvider.CreateBaseKey(context);
                 }

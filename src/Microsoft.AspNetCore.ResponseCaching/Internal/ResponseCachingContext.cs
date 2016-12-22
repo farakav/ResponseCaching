@@ -41,9 +41,9 @@ namespace Microsoft.AspNetCore.ResponseCaching.Internal
 
         internal bool ShouldCacheResponse { get; set; }
 
-        internal string BaseKey { get;  set; }
+        internal object BaseKey { get;  set; }
 
-        internal string StorageVaryKey { get;  set; }
+        internal object StorageVaryKey { get;  set; }
 
         internal TimeSpan CachedResponseValidFor { get;  set; }
 

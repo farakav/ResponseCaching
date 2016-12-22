@@ -22,7 +22,7 @@ namespace Microsoft.AspNetCore.ResponseCaching.Internal
             _cache = cache;
         }
 
-        public Task<IResponseCacheEntry> GetAsync(string key)
+        public Task<IResponseCacheEntry> GetAsync(object key)
         {
             var entry = _cache.Get(key);
 
@@ -43,7 +43,7 @@ namespace Microsoft.AspNetCore.ResponseCaching.Internal
             }
         }
 
-        public async Task SetAsync(string key, IResponseCacheEntry entry, TimeSpan validFor)
+        public async Task SetAsync(object key, IResponseCacheEntry entry, TimeSpan validFor)
         {
             var cachedResponse = entry as CachedResponse;
             if (cachedResponse != null)

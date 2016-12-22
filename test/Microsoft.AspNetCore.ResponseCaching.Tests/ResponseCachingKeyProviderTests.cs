@@ -24,7 +24,11 @@ namespace Microsoft.AspNetCore.ResponseCaching.Tests
             context.HttpContext.Request.PathBase = "/pathBase";
             context.HttpContext.Request.QueryString = new QueryString("?query.Key=a&query.Value=b");
 
-            Assert.Equal($"HEAD{KeyDelimiter}/PATH/SUBPATH", cacheKeyProvider.CreateBaseKey(context));
+            Assert.Equal(new ResponseCachingBaseKey
+            {
+                Method = "HEAD",
+                Path = "/PATH/SUBPATH"
+            }, cacheKeyProvider.CreateBaseKey(context));
         }
 
         [Fact]
@@ -38,7 +42,11 @@ namespace Microsoft.AspNetCore.ResponseCaching.Tests
             context.HttpContext.Request.Method = HttpMethods.Get;
             context.HttpContext.Request.Path = "/Path";
 
-            Assert.Equal($"{HttpMethods.Get}{KeyDelimiter}/PATH", cacheKeyProvider.CreateBaseKey(context));
+            Assert.Equal(new ResponseCachingBaseKey
+            {
+                Method = HttpMethods.Get,
+                Path = "/PATH"
+            }, cacheKeyProvider.CreateBaseKey(context));
         }
 
         [Fact]
@@ -52,7 +60,11 @@ namespace Microsoft.AspNetCore.ResponseCaching.Tests
             context.HttpContext.Request.Method = HttpMethods.Get;
             context.HttpContext.Request.Path = "/Path";
 
-            Assert.Equal($"{HttpMethods.Get}{KeyDelimiter}/Path", cacheKeyProvider.CreateBaseKey(context));
+            Assert.Equal(new ResponseCachingBaseKey
+            {
+                Method = HttpMethods.Get,
+                Path = "/Path"
+            }, cacheKeyProvider.CreateBaseKey(context));
         }
 
         [Fact]

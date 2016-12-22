@@ -34,13 +34,12 @@ namespace Microsoft.AspNetCore.ResponseCaching.Internal
             _options = options.Value;
         }
 
-        public IEnumerable<string> CreateLookupVaryByKeys(ResponseCachingContext context)
+        public IEnumerable<object> CreateLookupVaryByKeys(ResponseCachingContext context)
         {
-            return new string[] { CreateStorageVaryByKey(context) };
+            return new object[] { CreateStorageVaryByKey(context) };
         }
 
-        // GET<delimiter>/PATH
-        public string CreateBaseKey(ResponseCachingContext context)
+        public object CreateBaseKey(ResponseCachingContext context)
         {
             if (context == null)
             {
@@ -48,33 +47,17 @@ namespace Microsoft.AspNetCore.ResponseCaching.Internal
             }
 
             var request = context.HttpContext.Request;
-            var builder = _builderPool.Get();
 
-            try
+            return new ResponseCachingBaseKey
             {
-                builder
-                    .AppendUpperInvariant(request.Method)
-                    .Append(KeyDelimiter);
-
-                if (_options.UseCaseSensitivePaths)
-                {
-                    builder.Append(request.Path.Value);
-                }
-                else
-                {
-                    builder.AppendUpperInvariant(request.Path.Value);
-                }
-
-                return builder.ToString();
-            }
-            finally
-            {
-                _builderPool.Return(builder);
-            }
+                Method = request.Method,
+                Path = request.Path,
+                CaseSensitivePath = _options.UseCaseSensitivePaths
+            };
         }
 
         // BaseKey<delimiter>H<delimiter>HeaderName=HeaderValue<delimiter>Q<delimiter>QueryName=QueryValue
-        public string CreateStorageVaryByKey(ResponseCachingContext context)
+        public object CreateStorageVaryByKey(ResponseCachingContext context)
         {
             if (context == null)
             {
