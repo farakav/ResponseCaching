@@ -11,6 +11,7 @@ namespace Microsoft.AspNetCore.ResponseCaching.Tests
     public class ResponseCachingKeyProviderTests
     {
         private static readonly char KeyDelimiter = '\x1e';
+        private static readonly char KeySubDelimiter = '\x1f';
 
         [Fact]
         public void ResponseCachingKeyProvider_CreateStorageBaseKey_IncludesOnlyNormalizedMethodSchemeHostPortAndPath()
@@ -94,6 +95,22 @@ namespace Microsoft.AspNetCore.ResponseCaching.Tests
         }
 
         [Fact]
+        public void ResponseCachingKeyProvider_CreateStorageVaryKey_HeaderValuesNotConsolidated()
+        {
+            var cacheKeyProvider = TestUtils.CreateTestKeyProvider();
+            var context = TestUtils.CreateTestContext();
+            context.HttpContext.Request.Headers["HeaderA"] = "ValueA";
+            context.HttpContext.Request.Headers.Append("HeaderA", "ValueB");
+            context.CachedVaryByRules = new CachedVaryByRules()
+            {
+                Headers = new string[] { "HeaderA", "HeaderC" }
+            };
+
+            Assert.Equal($"{context.CachedVaryByRules.VaryByKeyPrefix}{KeyDelimiter}H{KeyDelimiter}HeaderA=ValueA{KeySubDelimiter}ValueB{KeyDelimiter}HeaderC=",
+                cacheKeyProvider.CreateStorageVaryByKey(context));
+        }
+
+        [Fact]
         public void ResponseCachingKeyProvider_CreateStorageVaryKey_IncludesListedQueryKeysOnly()
         {
             var cacheKeyProvider = TestUtils.CreateTestKeyProvider();
@@ -140,6 +157,24 @@ namespace Microsoft.AspNetCore.ResponseCaching.Tests
             // To support case insensitivity, all query keys are converted to upper case.
             // Explicit query keys uses the casing specified in the setting.
             Assert.Equal($"{context.CachedVaryByRules.VaryByKeyPrefix}{KeyDelimiter}Q{KeyDelimiter}QUERYA=ValueA{KeyDelimiter}QUERYB=ValueB",
+                cacheKeyProvider.CreateStorageVaryByKey(context));
+        }
+
+        [Fact]
+        public void ResponseCachingKeyProvider_CreateStorageVaryKey_QueryKeysValuesNotConsolidated()
+        {
+            var cacheKeyProvider = TestUtils.CreateTestKeyProvider();
+            var context = TestUtils.CreateTestContext();
+            context.HttpContext.Request.QueryString = new QueryString("?QueryA=ValueA&QueryA=ValueB");
+            context.CachedVaryByRules = new CachedVaryByRules()
+            {
+                VaryByKeyPrefix = FastGuid.NewGuid().IdString,
+                QueryKeys = new string[] { "*" }
+            };
+
+            // To support case insensitivity, all query keys are converted to upper case.
+            // Explicit query keys uses the casing specified in the setting.
+            Assert.Equal($"{context.CachedVaryByRules.VaryByKeyPrefix}{KeyDelimiter}Q{KeyDelimiter}QUERYA=ValueA{KeySubDelimiter}ValueB",
                 cacheKeyProvider.CreateStorageVaryByKey(context));
         }
 
