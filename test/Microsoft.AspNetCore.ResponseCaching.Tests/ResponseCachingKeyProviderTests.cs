@@ -100,13 +100,13 @@ namespace Microsoft.AspNetCore.ResponseCaching.Tests
             var cacheKeyProvider = TestUtils.CreateTestKeyProvider();
             var context = TestUtils.CreateTestContext();
             context.HttpContext.Request.Headers["HeaderA"] = "ValueA";
-            context.HttpContext.Request.Headers.Append("HeaderA", "ValueB");
+            context.HttpContext.Request.Headers.Append("HeaderA", "ValueB,ValueC");
             context.CachedVaryByRules = new CachedVaryByRules()
             {
                 Headers = new string[] { "HeaderA", "HeaderC" }
             };
 
-            Assert.Equal($"{context.CachedVaryByRules.VaryByKeyPrefix}{KeyDelimiter}H{KeyDelimiter}HeaderA=ValueA{KeySubDelimiter}ValueB{KeyDelimiter}HeaderC=",
+            Assert.Equal($"{context.CachedVaryByRules.VaryByKeyPrefix}{KeyDelimiter}H{KeyDelimiter}HeaderA=ValueA{KeySubDelimiter}ValueB,ValueC{KeyDelimiter}HeaderC=",
                 cacheKeyProvider.CreateStorageVaryByKey(context));
         }
 
