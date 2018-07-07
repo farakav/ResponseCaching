@@ -10,7 +10,7 @@ namespace Microsoft.AspNetCore.ResponseCaching.Internal
     /// <summary>
     /// Defines *all* the logger messages produced by response caching
     /// </summary>
-    internal static class LoggerExtensions
+    public static class LoggerExtensions
     {
         private static Action<ILogger, string, Exception> _logRequestMethodNotCacheable;
         private static Action<ILogger, Exception> _logRequestWithAuthorizationNotCacheable;
@@ -162,147 +162,147 @@ namespace Microsoft.AspNetCore.ResponseCaching.Internal
                 formatString: "The age of the entry is {Age} and has exceeded the maximum age of {MaxAge} specified by the 'max-age' cache directive. However, the 'max-stale' cache directive was specified without an assigned value and a stale response of any age is accepted.");
         }
 
-        internal static void LogRequestMethodNotCacheable(this ILogger logger, string method)
+        public static void LogRequestMethodNotCacheable(this ILogger logger, string method)
         {
             _logRequestMethodNotCacheable(logger, method, null);
         }
 
-        internal static void LogRequestWithAuthorizationNotCacheable(this ILogger logger)
+        public static void LogRequestWithAuthorizationNotCacheable(this ILogger logger)
         {
             _logRequestWithAuthorizationNotCacheable(logger, null);
         }
 
-        internal static void LogRequestWithNoCacheNotCacheable(this ILogger logger)
+        public static void LogRequestWithNoCacheNotCacheable(this ILogger logger)
         {
             _logRequestWithNoCacheNotCacheable(logger, null);
         }
 
-        internal static void LogRequestWithPragmaNoCacheNotCacheable(this ILogger logger)
+        public static void LogRequestWithPragmaNoCacheNotCacheable(this ILogger logger)
         {
             _logRequestWithPragmaNoCacheNotCacheable(logger, null);
         }
 
-        internal static void LogExpirationMinFreshAdded(this ILogger logger, TimeSpan duration)
+        public static void LogExpirationMinFreshAdded(this ILogger logger, TimeSpan duration)
         {
             _logExpirationMinFreshAdded(logger, duration, null);
         }
 
-        internal static void LogExpirationSharedMaxAgeExceeded(this ILogger logger, TimeSpan age, TimeSpan sharedMaxAge)
+        public static void LogExpirationSharedMaxAgeExceeded(this ILogger logger, TimeSpan age, TimeSpan sharedMaxAge)
         {
             _logExpirationSharedMaxAgeExceeded(logger, age, sharedMaxAge, null);
         }
 
-        internal static void LogExpirationMustRevalidate(this ILogger logger, TimeSpan age, TimeSpan maxAge)
+        public static void LogExpirationMustRevalidate(this ILogger logger, TimeSpan age, TimeSpan maxAge)
         {
             _logExpirationMustRevalidate(logger, age, maxAge, null);
         }
 
-        internal static void LogExpirationMaxStaleSatisfied(this ILogger logger, TimeSpan age, TimeSpan maxAge, TimeSpan maxStale)
+        public static void LogExpirationMaxStaleSatisfied(this ILogger logger, TimeSpan age, TimeSpan maxAge, TimeSpan maxStale)
         {
             _logExpirationMaxStaleSatisfied(logger, age, maxAge, maxStale, null);
         }
 
-        internal static void LogExpirationMaxAgeExceeded(this ILogger logger, TimeSpan age, TimeSpan sharedMaxAge)
+        public static void LogExpirationMaxAgeExceeded(this ILogger logger, TimeSpan age, TimeSpan sharedMaxAge)
         {
             _logExpirationMaxAgeExceeded(logger, age, sharedMaxAge, null);
         }
 
-        internal static void LogExpirationExpiresExceeded(this ILogger logger, DateTimeOffset responseTime, DateTimeOffset expires)
+        public static void LogExpirationExpiresExceeded(this ILogger logger, DateTimeOffset responseTime, DateTimeOffset expires)
         {
             _logExpirationExpiresExceeded(logger, responseTime, expires, null);
         }
 
-        internal static void LogResponseWithoutPublicNotCacheable(this ILogger logger)
+        public static void LogResponseWithoutPublicNotCacheable(this ILogger logger)
         {
             _logResponseWithoutPublicNotCacheable(logger, null);
         }
 
-        internal static void LogResponseWithNoStoreNotCacheable(this ILogger logger)
+        public static void LogResponseWithNoStoreNotCacheable(this ILogger logger)
         {
             _logResponseWithNoStoreNotCacheable(logger, null);
         }
 
-        internal static void LogResponseWithNoCacheNotCacheable(this ILogger logger)
+        public static void LogResponseWithNoCacheNotCacheable(this ILogger logger)
         {
             _logResponseWithNoCacheNotCacheable(logger, null);
         }
 
-        internal static void LogResponseWithSetCookieNotCacheable(this ILogger logger)
+        public static void LogResponseWithSetCookieNotCacheable(this ILogger logger)
         {
             _logResponseWithSetCookieNotCacheable(logger, null);
         }
 
-        internal static void LogResponseWithVaryStarNotCacheable(this ILogger logger)
+        public static void LogResponseWithVaryStarNotCacheable(this ILogger logger)
         {
             _logResponseWithVaryStarNotCacheable(logger, null);
         }
 
-        internal static void LogResponseWithPrivateNotCacheable(this ILogger logger)
+        public static void LogResponseWithPrivateNotCacheable(this ILogger logger)
         {
             _logResponseWithPrivateNotCacheable(logger, null);
         }
 
-        internal static void LogResponseWithUnsuccessfulStatusCodeNotCacheable(this ILogger logger, int statusCode)
+        public static void LogResponseWithUnsuccessfulStatusCodeNotCacheable(this ILogger logger, int statusCode)
         {
             _logResponseWithUnsuccessfulStatusCodeNotCacheable(logger, statusCode, null);
         }
 
-        internal static void LogNotModifiedIfNoneMatchStar(this ILogger logger)
+        public static void LogNotModifiedIfNoneMatchStar(this ILogger logger)
         {
             _logNotModifiedIfNoneMatchStar(logger, null);
         }
 
-        internal static void LogNotModifiedIfNoneMatchMatched(this ILogger logger, EntityTagHeaderValue etag)
+        public static void LogNotModifiedIfNoneMatchMatched(this ILogger logger, EntityTagHeaderValue etag)
         {
             _logNotModifiedIfNoneMatchMatched(logger, etag, null);
         }
 
-        internal static void LogNotModifiedIfModifiedSinceSatisfied(this ILogger logger, DateTimeOffset lastModified, DateTimeOffset ifModifiedSince)
+        public static void LogNotModifiedIfModifiedSinceSatisfied(this ILogger logger, DateTimeOffset lastModified, DateTimeOffset ifModifiedSince)
         {
             _logNotModifiedIfModifiedSinceSatisfied(logger, lastModified, ifModifiedSince, null);
         }
 
-        internal static void LogNotModifiedServed(this ILogger logger)
+        public static void LogNotModifiedServed(this ILogger logger)
         {
             _logNotModifiedServed(logger, null);
         }
 
-        internal static void LogCachedResponseServed(this ILogger logger)
+        public static void LogCachedResponseServed(this ILogger logger)
         {
             _logCachedResponseServed(logger, null);
         }
 
-        internal static void LogGatewayTimeoutServed(this ILogger logger)
+        public static void LogGatewayTimeoutServed(this ILogger logger)
         {
             _logGatewayTimeoutServed(logger, null);
         }
 
-        internal static void LogNoResponseServed(this ILogger logger)
+        public static void LogNoResponseServed(this ILogger logger)
         {
             _logNoResponseServed(logger, null);
         }
 
-        internal static void LogVaryByRulesUpdated(this ILogger logger, string headers, string queryKeys)
+        public static void LogVaryByRulesUpdated(this ILogger logger, string headers, string queryKeys)
         {
             _logVaryByRulesUpdated(logger, headers, queryKeys, null);
         }
 
-        internal static void LogResponseCached(this ILogger logger)
+        public static void LogResponseCached(this ILogger logger)
         {
             _logResponseCached(logger, null);
         }
 
-        internal static void LogResponseNotCached(this ILogger logger)
+        public static void LogResponseNotCached(this ILogger logger)
         {
             _logResponseNotCached(logger, null);
         }
 
-        internal static void LogResponseContentLengthMismatchNotCached(this ILogger logger)
+        public static void LogResponseContentLengthMismatchNotCached(this ILogger logger)
         {
             _logResponseContentLengthMismatchNotCached(logger, null);
         }
 
-        internal static void LogExpirationInfiniteMaxStaleSatisfied(this ILogger logger, TimeSpan age, TimeSpan maxAge)
+        public static void LogExpirationInfiniteMaxStaleSatisfied(this ILogger logger, TimeSpan age, TimeSpan maxAge)
         {
             _logExpirationInfiniteMaxStaleSatisfied(logger, age, maxAge, null);
         }

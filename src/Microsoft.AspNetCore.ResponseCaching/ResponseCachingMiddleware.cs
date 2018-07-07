@@ -7,6 +7,7 @@ using System.Threading.Tasks;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Http.Features;
 using Microsoft.AspNetCore.ResponseCaching.Internal;
+using Microsoft.AspNetCore.Routing;
 using Microsoft.Extensions.Caching.Memory;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
@@ -25,37 +26,17 @@ namespace Microsoft.AspNetCore.ResponseCaching
         private readonly IResponseCachingPolicyProvider _policyProvider;
         private readonly IResponseCache _cache;
         private readonly IResponseCachingKeyProvider _keyProvider;
+        private readonly IAsyncCacheFilterProvider _cacheFilterProvider;
 
         public ResponseCachingMiddleware(
             RequestDelegate next,
             IOptions<ResponseCachingOptions> options,
             ILoggerFactory loggerFactory,
             IResponseCachingPolicyProvider policyProvider,
-            IResponseCachingKeyProvider keyProvider)
-            : this(
-                next,
-                options,
-                loggerFactory,
-                policyProvider,
-                new MemoryResponseCache(new MemoryCache(new MemoryCacheOptions
-                {
-                    SizeLimit = options.Value.SizeLimit
-                })), keyProvider)
-        { }
-
-        // for testing
-        internal ResponseCachingMiddleware(
-            RequestDelegate next,
-            IOptions<ResponseCachingOptions> options,
-            ILoggerFactory loggerFactory,
-            IResponseCachingPolicyProvider policyProvider,
             IResponseCache cache,
-            IResponseCachingKeyProvider keyProvider)
+            IResponseCachingKeyProvider keyProvider,
+            IAsyncCacheFilterProvider cacheFilterProvider)
         {
-            if (next == null)
-            {
-                throw new ArgumentNullException(nameof(next));
-            }
             if (options == null)
             {
                 throw new ArgumentNullException(nameof(options));
@@ -64,30 +45,29 @@ namespace Microsoft.AspNetCore.ResponseCaching
             {
                 throw new ArgumentNullException(nameof(loggerFactory));
             }
-            if (policyProvider == null)
-            {
-                throw new ArgumentNullException(nameof(policyProvider));
-            }
-            if (cache == null)
-            {
-                throw new ArgumentNullException(nameof(cache));
-            }
-            if (keyProvider == null)
-            {
-                throw new ArgumentNullException(nameof(keyProvider));
-            }
 
-            _next = next;
+            _next = next ?? throw new ArgumentNullException(nameof(next));
             _options = options.Value;
             _logger = loggerFactory.CreateLogger<ResponseCachingMiddleware>();
-            _policyProvider = policyProvider;
-            _cache = cache;
-            _keyProvider = keyProvider;
+            _policyProvider = policyProvider ?? throw new ArgumentNullException(nameof(policyProvider));
+            _cache = cache ?? throw new ArgumentNullException(nameof(cache));
+            _keyProvider = keyProvider ?? throw new ArgumentNullException(nameof(keyProvider));
+            _cacheFilterProvider = cacheFilterProvider;
         }
 
         public async Task Invoke(HttpContext httpContext)
         {
             var context = new ResponseCachingContext(httpContext, _logger);
+
+            ICollection<AsyncCacheFilter> cacheFilters
+                = _cacheFilterProvider.GetFilters(context.HttpContext,
+                    out AsyncCacheFilterContext filterContext);
+
+            if (cacheFilters != null)
+                foreach (AsyncCacheFilter asyncCacheFilter in cacheFilters)
+                {
+                    await asyncCacheFilter.OnBeforeServerAsync(filterContext);
+                }
 
             // Should we attempt any caching logic?
             if (_policyProvider.AttemptResponseCaching(context))
@@ -95,6 +75,13 @@ namespace Microsoft.AspNetCore.ResponseCaching
                 // Can this request be served from cache?
                 if (_policyProvider.AllowCacheLookup(context) && await TryServeFromCacheAsync(context))
                 {
+                    if (cacheFilters == null)
+                        return;
+
+                    foreach (AsyncCacheFilter asyncCacheFilter in cacheFilters)
+                    {
+                        await asyncCacheFilter.OnCacheServedAsync(filterContext);
+                    }
                     return;
                 }
 
@@ -349,6 +336,10 @@ namespace Microsoft.AspNetCore.ResponseCaching
                     {
                         context.CachedResponse.Headers[HeaderNames.ContentLength] = HeaderUtilities.FormatNonNegativeInt64(bufferStream.Length);
                     }
+
+                    // Remove set-cookie headers from cached response
+                    if (!StringValues.IsNullOrEmpty(response.Headers[HeaderNames.SetCookie]))
+                        context.CachedResponse.Headers.Remove(HeaderNames.SetCookie);
 
                     context.CachedResponse.Body = bufferStream;
                     _logger.LogResponseCached();

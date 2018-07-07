@@ -35,29 +35,29 @@ namespace Microsoft.AspNetCore.ResponseCaching.Internal
 
         public CachedVaryByRules CachedVaryByRules { get; internal set; }
 
-        internal ILogger Logger { get; }
+        public ILogger Logger { get; }
 
-        internal bool ShouldCacheResponse { get; set; }
+        public bool ShouldCacheResponse { get; set; }
 
-        internal string BaseKey { get;  set; }
+        public string BaseKey { get;  set; }
 
-        internal string StorageVaryKey { get;  set; }
+        public string StorageVaryKey { get;  set; }
 
-        internal TimeSpan CachedResponseValidFor { get;  set; }
+        public TimeSpan CachedResponseValidFor { get;  set; }
 
-        internal CachedResponse CachedResponse { get;  set; }
+        public CachedResponse CachedResponse { get;  set; }
 
-        internal bool ResponseStarted { get; set; }
+        public bool ResponseStarted { get; set; }
 
-        internal Stream OriginalResponseStream { get; set; }
+        public Stream OriginalResponseStream { get; set; }
 
         internal ResponseCachingStream ResponseCachingStream { get; set; }
 
-        internal IHttpSendFileFeature OriginalSendFileFeature { get; set; }
+        public IHttpSendFileFeature OriginalSendFileFeature { get; set; }
 
-        internal IHeaderDictionary CachedResponseHeaders { get; set; }
+        public IHeaderDictionary CachedResponseHeaders { get; set; }
 
-        internal DateTimeOffset? ResponseDate
+        public DateTimeOffset? ResponseDate
         {
             get
             {
@@ -84,7 +84,7 @@ namespace Microsoft.AspNetCore.ResponseCaching.Internal
             }
         }
 
-        internal DateTimeOffset? ResponseExpires
+        public DateTimeOffset? ResponseExpires
         {
             get
             {
@@ -105,7 +105,7 @@ namespace Microsoft.AspNetCore.ResponseCaching.Internal
             }
         }
 
-        internal TimeSpan? ResponseSharedMaxAge
+        public TimeSpan? ResponseSharedMaxAge
         {
             get
             {
@@ -118,7 +118,7 @@ namespace Microsoft.AspNetCore.ResponseCaching.Internal
             }
         }
 
-        internal TimeSpan? ResponseMaxAge
+        public TimeSpan? ResponseMaxAge
         {
             get
             {
